@@ -214,9 +214,10 @@ float LookupTemperature(float voltage) {
     return 100;
   if( voltage <= 0.44 )
     return 0;
+  // nested multiplication
   int i;
   float r = poly[0];
-  for(i = 0; i < 5; i++) {
+  for(i = 1; i < 5; i++) {
     r = poly[i] + r*voltage;
   }
   return r;
