@@ -242,10 +242,10 @@ p = np.polyfit(v,t,5);
 result = 0;
 def nested(p,x):
     result = 0;
-    p = np.flipud(p);
     for a in p:
         result = a+x*result
-    
+    return result
+
 
 
 
