@@ -219,9 +219,9 @@ plt.plot(v, t)
 
 #%%  Taylor
 
-p2 = np.poly1d( np.polyfit(v,t,2));
 p3 = np.poly1d( np.polyfit(v,t,3));
 p4 = np.poly1d( np.polyfit(v,t,4));
+p5 = np.poly1d( np.polyfit(v,t,5));
 
 t = np.linspace(0,100,201);
 v = np.array(v);
@@ -236,7 +236,7 @@ plt.plot(v,p4(v))
 
 
 # p4 = -1.431 x^4 + 14.82 x^3 - 56.9 x^2 + 118.3 x - 41.23
-p = np.polyfit(v,t,4);
+p = np.polyfit(v,t,5);
 # p = [  -1.43122308,   14.81914265,  -56.89628964,  118.34308209,
 #        -41.23023873]
 result = 0;

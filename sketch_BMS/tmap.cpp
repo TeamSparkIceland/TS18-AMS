@@ -206,7 +206,12 @@
 //		0.44
 //};
 
-const float poly[5] = { -1.43122308,   14.81914265,  -56.89628964,  118.34308209,   -41.23023873};
+// 4th degree taylor
+//const float poly[5] = { -1.43122308,   14.81914265,  -56.89628964,  118.34308209,   -41.23023873};
+
+// 5th degree taylor
+const float poly[6] = { 0.78897406,   -9.3072085 ,   43.9184899 , -105.7000278 ,  154.66094589,  -50.62510468 };
+
 
 // Sequential search: O(n) = n
 float LookupTemperature(float voltage) {
@@ -217,7 +222,7 @@ float LookupTemperature(float voltage) {
   // nested multiplication
   int i;
   float r = poly[0];
-  for(i = 1; i < 5; i++) {
+  for(i = 1; i < 6; i++) {
     r = poly[i] + r*voltage;
   }
   return r;
