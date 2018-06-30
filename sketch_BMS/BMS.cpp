@@ -88,10 +88,10 @@ void BMS_Initialize() {
    all the measurements.
    @return the code of the last detected failure. 0 = success.
 */
-static uint16_t cell_codes[TOTAL_IC][12];
+static uint16_t cell_voltage[TOTAL_IC][12];
 uint16_t cell_code;
 bool pec_error;
-uint8_t get_cell_voltages() {
+bool get_cell_voltages() {
   pec_error = false;
   lowest_voltage = BMS_high_voltage;
   BMS_debug && Serial.print("Voltages\r\n");
@@ -100,22 +100,28 @@ uint8_t get_cell_voltages() {
   delayMicroseconds(10);
 
   // Read each cell voltage register
-  if ( LTC6804_rdcv(CELL_CH_ALL,  cell_codes) != 0 ) {
+  if ( LTC6804_rdcv(CELL_CH_ALL,  cell_voltage) != 0 ) {
     pec_error = true;
   }
-
+  
   for (uint8_t k = 0; k < TOTAL_IC; k++) {
     for (uint8_t l = 0; l < 12; l++) {
-      cell_code = cell_codes[k][l];
-      cell_data[k][l].voltage = (float)(cell_code / 10000.0);
+      cell_code = cell_voltage[k][l];
+      voltage = (float)(cell_code / 10000.0);
+      BMS_debug && Serial.print(voltage);
+      
       if (cell_data[k][l].voltage < lowest_voltage) {
         lowest_voltage = cell_data[k][l].voltage;
       }
-      cell_data[k][l].voltage_pec_failure = pec_error;
       BMS_debug && Serial.print("\r\n");
+      
+      if( voltage >= BMS_high_temperature )
+      if( voltage <=BMS_low_temperature )
+      if( pec_error == true )
     }
     BMS_debug && Serial.print("\r\n");
   }
+  return pec_error;
 }
 
 /**
@@ -182,7 +188,7 @@ bool get_cell_temperatures() {
       temp_code = (uint16_t)((aux_codes[current_ic][1] << 8) + aux_codes[current_ic][0]);
       temp_code_div = (float)(temp_code / 10000.0);
       convVal = LookupTemperature(temp_code_div);
-      //if(BMS_debug) {
+      if(BMS_debug) {
         Serial.print("B");
         Serial.print(current_ic);
         Serial.print(" C");
@@ -192,12 +198,13 @@ bool get_cell_temperatures() {
         Serial.print(" ");
         Serial.print(convVal);
         Serial.print("\r\n");
-      //}
-
-      cell_data[current_ic][sensor_id].temperature = convVal;
-      cell_data[current_ic][sensor_id].temperature_pec_failure = pec_error;
+      }
+      if( convVal >= BMS_high_temperature )
+      if( convVal <=BMS_low_temperature )
+      if( pec_error == true )
     }
   }
+  return pec_error;
 }
 
 
@@ -205,90 +212,92 @@ bool get_cell_temperatures() {
    Print report to serial
 */
 void send_data_packet() {
-  if (!BMS_debug) {
-    return;
-  }
-  for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
-    Serial.print(ic);
-    Serial.print("|");
-    for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
-      Serial.print(cell);
-      Serial.print("|");
-
-      if (cell_data[ic][cell].voltage_pec_failure == true) {
-        Serial.print("PEC|");
-      } else {
-        Serial.print((uint16_t)(cell_data[ic][cell].voltage * 1000));
-        Serial.print("|");
-      }
-
-      if (cell_data[ic][cell].temperature_pec_failure == true) {
-        Serial.print("PEC|");
-      } else {
-        Serial.print((uint16_t)(cell_data[ic][cell].temperature));
-        Serial.print("|");
-      }
-
-      if (cell_data[ic][cell].discharge_enabled == true) {
-        Serial.print("1|");
-      } else {
-        Serial.print("0|");
-      }
-    }
-    Serial.print("\r\n");
-  }
+//  if (!BMS_debug) {
+//    return;
+//  }
+//  for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
+//    Serial.print(ic);
+//    Serial.print("|");
+//    for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
+//      Serial.print(cell);
+//      Serial.print("|");
+//
+//      if (cell_data[ic][cell].voltage_pec_failure == true) {
+//        Serial.print("PEC|");
+//      } else {
+//        Serial.print((uint16_t)(cell_data[ic][cell].voltage * 1000));
+//        Serial.print("|");
+//      }
+//
+//      if (cell_data[ic][cell].temperature_pec_failure == true) {
+//        Serial.print("PEC|");
+//      } else {
+//        Serial.print((uint16_t)(cell_data[ic][cell].temperature));
+//        Serial.print("|");
+//      }
+//
+//      if (cell_data[ic][cell].discharge_enabled == true) {
+//        Serial.print("1|");
+//      } else {
+//        Serial.print("0|");
+//      }
+//    }
+//    Serial.print("\r\n");
+//  }
 }
 
 
 /* bool BMS_check()
    Read and check all voltage levels and temperature
-   If no tolerances are exceeded and no errors occur "true" is returned else "false"
+   If no tolerances are exceeded and no errors occur "false" is returned otherwise in the event of failure "false" is returned
 */
 bool BMS_check() {
   // Gather
   wakeup_sleep();
-  get_cell_voltages();
-  get_cell_temperatures();
-  send_data_packet();
+  if( check_cell_voltages() )
+    return true;
+  if( check_cell_temperatures())
+    return true;
+  //send_data_packet();
 
-  Cell cell;
-  for (uint8_t i = 0; i < TOTAL_IC; i++) {
-    for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-
-      cell = cell_data[i][j];
-
-      if (cell.voltage >= BMS_high_voltage) {
-        cell_data[i][j].voltage_error_count++;
-      } else if (cell.voltage <= BMS_low_voltage) {
-        cell_data[i][j].voltage_error_count++;
-      } else if (cell.voltage_pec_failure == true) {
-        cell_data[i][j].voltage_error_count++;
-      } else {
-        cell_data[i][j].voltage_error_count = 0;
-      }
-
-      if (cell.voltage_error_count == VOLTAGE_COUNT) {
-        cell_data[i][j].voltage_error_count--;
-        return true;
-      }
-
-      if (cell.temperature >= BMS_high_temperature) {
-        cell_data[i][j].temperature_error_count++;
-      } else if (cell.temperature <= BMS_low_temperature) {
-        cell_data[i][j].temperature_error_count++;
-      } else if (cell.temperature_pec_failure == true) {
-        cell_data[i][j].temperature_error_count++;
-      } else {
-        cell_data[i][j].temperature_error_count = 0;
-      }
-
-      if (cell.temperature_error_count == TEMP_COUNT) {
-        cell_data[i][j].temperature_error_count--;
-        return true;
-      }
-
-    }
-  }
+//  Cell cell;
+//  for (uint8_t i = 0; i < TOTAL_IC; i++) {
+//    for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
+//
+//      cell = cell_data[i][j];
+//
+//      if (cell.voltage >= BMS_high_voltage) {
+//        cell_data[i][j].voltage_error_count++;
+//      } else if (cell.voltage <= BMS_low_voltage) {
+//        cell_data[i][j].voltage_error_count++;
+//      } else if (cell.voltage_pec_failure == true) {
+//        cell_data[i][j].voltage_error_count++;
+//      } else {
+//        cell_data[i][j].voltage_error_count = 0;
+//      }
+//
+//      if (cell.voltage_error_count == VOLTAGE_COUNT) {
+//        cell_data[i][j].voltage_error_count--;
+//        return true;
+//      }
+//
+//      if (cell.temperature >= BMS_high_temperature) {
+//        cell_data[i][j].temperature_error_count++;
+//      } else if (cell.temperature <= BMS_low_temperature) {
+//        cell_data[i][j].temperature_error_count++;
+//      } else if (cell.temperature_pec_failure == true) {
+//        cell_data[i][j].temperature_error_count++;
+//      } else {
+//        cell_data[i][j].temperature_error_count = 0;
+//      }
+//
+//      if (cell.temperature_error_count == TEMP_COUNT) {
+//        cell_data[i][j].temperature_error_count--;
+//        return true;
+//      }
+//
+//    }
+//  }
   return false;
 }
 

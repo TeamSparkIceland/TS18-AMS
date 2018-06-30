@@ -70,7 +70,7 @@ void loop()
   delay(50);
   
   // Check data for tolerance levels
-  if (BMS_check() == true) {
+  if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
     IO_BMS_CS_SetLow();
   } else {
