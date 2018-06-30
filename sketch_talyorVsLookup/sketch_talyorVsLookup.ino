@@ -209,8 +209,10 @@ const float temperature_map[201] = {
 //const float poly[5] = { -1.43122308,   14.81914265,  -56.89628964,  118.34308209,   -41.23023873};
 
 // 5th degree taylor
-static const float poly[6] = { 0.78897406,   -9.3072085 ,   43.9184899 , -105.7000278 ,  154.66094589,  -50.62510468 };
+//static const float poly[6] = { -0.78897406,    9.3072085 ,  -43.9184899 ,  105.7000278 ,  -154.66094589,  150.62510468 };
 
+// 6th degree taylor
+static const float poly[7] = { 0.36451765,   -5.17246463,   29.94820667,  -92.05035697,  163.49325764, -188.03303634,  157.78043721 };
 
 // Sequential search: O(n) = n
 float LookupTemperature(float voltage) {
@@ -233,13 +235,13 @@ float calc_temp(float voltage) {
   // nested multiplication
   int i;
   float r = poly[0];
-  for (i = 1; i < 6; i++) {
+  for (i = 1; i < 7; i++) {
     r = poly[i] + r * voltage;
   }
   return r;
 }
 
-#define n_runs  10000
+#define n_runs  100000
 unsigned long timetmp1;
 unsigned long timetmp2;
 unsigned long timeL;
@@ -247,7 +249,7 @@ unsigned long timeT;
 float randV;
 float resultL;
 float resultT;
-float resultA; 
+float resultA;
 
 void setup() {
   // put your setup code here, to run once:
@@ -258,56 +260,62 @@ void setup() {
 
 void loop() {
   // Check error
-  randV = ((float)  random(0, 400) ) / 100;
-  Serial.print("Random voltage: ");
-  Serial.println(randV);
-  Serial.print("Lookup table temp: ");
-  Serial.println(LookupTemperature(randV));
-  Serial.print("calculated temp:   ");
-  Serial.println(calc_temp(randV));
-  delay(500);
+  //  randV = ((float)  random(0, 400) ) / 100;
+  //  Serial.print("Random voltage: ");
+  //  Serial.println(randV);
+  //  Serial.print("Lookup table temp: ");
+  //  Serial.println(LookupTemperature(randV));
+  //  Serial.print("calculated temp:   ");
+  //  Serial.println(calc_temp(randV));
+  //  delay(500);
 
 
   // Check time inconclusive
-//  randV = ((float)  random(0, 400) ) / 100;
-//  timetmp1 = micros();
-//  resultL = LookupTemperature(randV);
-//  timetmp2 = micros();
-//  timeL = timetmp2 - timetmp1;
-//
-//  timetmp1 = micros();
-//  resultT = calc_temp(randV);
-//  timetmp2 = micros();
-//  timeT = timetmp2 - timetmp1;
-//  resultA = abs(resultL-resultT);
-//  
-//  int i;
-//  for (i = 0; i < n_runs; i++) {
-//    randV = ((float)  random(0, 400) ) / 100;
-//    timetmp1 = micros();
-//    resultL = LookupTemperature(randV);
-//    timetmp2 = micros();
-//    timeL = (timeL + (timetmp2 - timetmp1)) / 2;
-//
-//    timetmp1 = micros();
-//    resultT = calc_temp(randV);
-//    timetmp2 = micros();
-//    timeT = (timeT + (timetmp2 - timetmp1)) / 2;
-//    resultA = (resultA + abs(resultL-resultT)) /2;
-//    if( i % 100 == 0)
-//      Serial.print(".");
-//    if( i % 1000 == 0) {
-//      Serial.println("");
-//      Serial.print("Average time lookup table: ");
-//      Serial.println(timeL);
-//      Serial.print("Average time 5th order Taylor: ");
-//      Serial.println(timeT);
-//      Serial.print("Average error: ");
-//      Serial.println(resultA);
-//    }
-//  }
-  
-  
-  
-  
+  randV = ((float)  random(0, 400) ) / 100;
+  timetmp1 = micros();
+  resultL = LookupTemperature(randV);
+  timetmp2 = micros();
+  timeL = timetmp2 - timetmp1;
+
+  timetmp1 = micros();
+  resultT = calc_temp(randV);
+  timetmp2 = micros();
+  timeT = timetmp2 - timetmp1;
+  resultA = abs(resultL - resultT);
+
+  int i;
+  for (i = 0; i < n_runs; i++) {
+    randV = ((float)  random(50, 350) ) / 100;
+    timetmp1 = micros();
+    resultL = LookupTemperature(randV);
+    timetmp2 = micros();
+    timeL = (timeL + (timetmp2 - timetmp1)) / 2;
+
+    timetmp1 = micros();
+    resultT = calc_temp(randV);
+    timetmp2 = micros();
+    timeT = (timeT + (timetmp2 - timetmp1)) / 2;
+    resultA = (resultA + abs(resultL - resultT)) / 2;
+    if ( i % 80 == 0)
+      Serial.print(".");
+    if ( i % 2000 == 0) {
+      Serial.println("");
+      Serial.print("Average time lookup table: ");
+      Serial.println(timeL);
+      Serial.print("Average time 6th order Taylor: ");
+      Serial.println(timeT);
+      Serial.print("Random voltage: ");
+      Serial.println(randV);
+      Serial.print("Lookup table temp: ");
+      Serial.println(resultL);
+      Serial.print("calculated temp:   ");
+      Serial.println(resultT);
+      Serial.print("Average error: ");
+      Serial.println(resultA);
+    }
+  }
+
+
+
+
 }
