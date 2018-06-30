@@ -210,8 +210,7 @@ v = np.array([3.64,
 		0.45,
 		0.44]);
 
-v = np.flipud(v);
-t = np.linspace(0,100,num = 201, endpoint = True);
+t = (np.linspace(0,100,num = 201, endpoint = True));
 
 
 #%% Plot
