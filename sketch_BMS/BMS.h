@@ -27,17 +27,17 @@ extern "C" {
 
 // Structure for containing values for each individual cell
 typedef struct Cells {
-  float voltage;
-  float temperature;
-  bool voltage_pec_failure;
-  bool temperature_pec_failure;
-  uint8_t voltage_error_count;
-  uint8_t temperature_error_count;
-  bool discharge_enabled;
+//  float voltage;
+//  float temperature;
+//  bool voltage_pec_failure;
+//  bool temperature_pec_failure;
+//  uint8_t voltage_error_count;
+//  uint8_t temperature_error_count;
+//  bool discharge_enabled;
 } Cell;
 
 typedef struct dischargeState {
-  uint8_t state;
+  bool state;
 } DischargeState;
 
 

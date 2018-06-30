@@ -16,13 +16,15 @@
 float lowest_voltage;
 float BMS_discharge_voltage;
 bool BMS_discharge_enabled = false;
-
 static DischargeState discharge_state;
-
 uint8_t discharge_part = 0;
 uint8_t discharge_completed = 0;
 
 static Cell cell_data[TOTAL_IC][12];
+uint8_t error_reset_counter = 0;
+uint8_t voltage_error_count = 0;
+uint8_t temperature_error_count = 0;
+
 // variable for temperature measurement readings
 uint16_t aux_codes[TOTAL_IC][6];
 /* The GPIO codes will be stored in the aux_codes[][6] array in the following format:
@@ -92,36 +94,49 @@ static uint16_t cell_voltage[TOTAL_IC][12];
 uint16_t cell_code;
 bool pec_error;
 bool get_cell_voltages() {
+  error_reset_coutner++;
   pec_error = false;
   lowest_voltage = BMS_high_voltage;
   BMS_debug && Serial.print("Voltages\r\n");
   wakeup_idle();
-   LTC6804_adcv();  //---------------     Stuck    ------------------
+  LTC6804_adcv();  //---------------     Stuck    ------------------
   delayMicroseconds(10);
 
   // Read each cell voltage register
   if ( LTC6804_rdcv(CELL_CH_ALL,  cell_voltage) != 0 ) {
     pec_error = true;
   }
-  
+
   for (uint8_t k = 0; k < TOTAL_IC; k++) {
     for (uint8_t l = 0; l < 12; l++) {
       cell_code = cell_voltage[k][l];
       voltage = (float)(cell_code / 10000.0);
       BMS_debug && Serial.print(voltage);
-      
+
       if (cell_data[k][l].voltage < lowest_voltage) {
         lowest_voltage = cell_data[k][l].voltage;
       }
       BMS_debug && Serial.print("\r\n");
-      
-      if( voltage >= BMS_high_temperature )
-      if( voltage <=BMS_low_temperature )
-      if( pec_error == true )
+
+      if ( voltage >= BMS_high_voltage )
+        voltage_error_count++;
+      if ( voltage <= BMS_low_voltage )
+        voltage_error_count++;
     }
     BMS_debug && Serial.print("\r\n");
   }
-  return pec_error;
+  if ( pec_error == true )
+    voltage_error_count++;
+
+  if ( voltage_error_count >= VOLTAGE_COUNT) {
+    voltage_error_count = 0;
+    return true;
+  }
+  if ( error_reset_counter >= 10) {
+    voltage_error_count = 0;
+    error_reset_counter = 0;
+  }
+  return false;
 }
 
 /**
@@ -145,6 +160,7 @@ void set_mux_address(uint8_t sensor_id) {
    Return true if all measurements were within range, else false.
 */
 bool get_cell_temperatures() {
+  error_reset_counter++;
   bool result = true;
   bool pec_error = false;
   int8_t error;
@@ -188,7 +204,7 @@ bool get_cell_temperatures() {
       temp_code = (uint16_t)((aux_codes[current_ic][1] << 8) + aux_codes[current_ic][0]);
       temp_code_div = (float)(temp_code / 10000.0);
       convVal = LookupTemperature(temp_code_div);
-      if(BMS_debug) {
+      if (BMS_debug) {
         Serial.print("B");
         Serial.print(current_ic);
         Serial.print(" C");
@@ -199,12 +215,24 @@ bool get_cell_temperatures() {
         Serial.print(convVal);
         Serial.print("\r\n");
       }
-      if( convVal >= BMS_high_temperature )
-      if( convVal <=BMS_low_temperature )
-      if( pec_error == true )
+      if ( convVal >= BMS_high_temperature )
+        temperature_error_count++;
+      if ( convVal <= BMS_low_temperature )
+        temperature_error_count++;
     }
   }
-  return pec_error;
+  if ( pec_error == true )
+    temperature_error_count++;
+
+  if ( temperature_error_count >= TEMP_COUNT) {
+    temperature_error_count = 0;
+    return true;
+  }
+  if ( error_reset_counter >= 10) {
+    temperature_error_count = 0;
+    error_reset_counter = 0;
+  }
+  return false;
 }
 
 
@@ -212,38 +240,38 @@ bool get_cell_temperatures() {
    Print report to serial
 */
 void send_data_packet() {
-//  if (!BMS_debug) {
-//    return;
-//  }
-//  for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
-//    Serial.print(ic);
-//    Serial.print("|");
-//    for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
-//      Serial.print(cell);
-//      Serial.print("|");
-//
-//      if (cell_data[ic][cell].voltage_pec_failure == true) {
-//        Serial.print("PEC|");
-//      } else {
-//        Serial.print((uint16_t)(cell_data[ic][cell].voltage * 1000));
-//        Serial.print("|");
-//      }
-//
-//      if (cell_data[ic][cell].temperature_pec_failure == true) {
-//        Serial.print("PEC|");
-//      } else {
-//        Serial.print((uint16_t)(cell_data[ic][cell].temperature));
-//        Serial.print("|");
-//      }
-//
-//      if (cell_data[ic][cell].discharge_enabled == true) {
-//        Serial.print("1|");
-//      } else {
-//        Serial.print("0|");
-//      }
-//    }
-//    Serial.print("\r\n");
-//  }
+  //  if (!BMS_debug) {
+  //    return;
+  //  }
+  //  for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
+  //    Serial.print(ic);
+  //    Serial.print("|");
+  //    for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
+  //      Serial.print(cell);
+  //      Serial.print("|");
+  //
+  //      if (cell_data[ic][cell].voltage_pec_failure == true) {
+  //        Serial.print("PEC|");
+  //      } else {
+  //        Serial.print((uint16_t)(cell_data[ic][cell].voltage * 1000));
+  //        Serial.print("|");
+  //      }
+  //
+  //      if (cell_data[ic][cell].temperature_pec_failure == true) {
+  //        Serial.print("PEC|");
+  //      } else {
+  //        Serial.print((uint16_t)(cell_data[ic][cell].temperature));
+  //        Serial.print("|");
+  //      }
+  //
+  //      if (cell_data[ic][cell].discharge_enabled == true) {
+  //        Serial.print("1|");
+  //      } else {
+  //        Serial.print("0|");
+  //      }
+  //    }
+  //    Serial.print("\r\n");
+  //  }
 }
 
 
@@ -254,50 +282,50 @@ void send_data_packet() {
 bool BMS_check() {
   // Gather
   wakeup_sleep();
-  if( check_cell_voltages() )
+  if ( check_cell_voltages() )
     return true;
-  if( check_cell_temperatures())
+  if ( check_cell_temperatures())
     return true;
   //send_data_packet();
 
-//  Cell cell;
-//  for (uint8_t i = 0; i < TOTAL_IC; i++) {
-//    for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-//
-//      cell = cell_data[i][j];
-//
-//      if (cell.voltage >= BMS_high_voltage) {
-//        cell_data[i][j].voltage_error_count++;
-//      } else if (cell.voltage <= BMS_low_voltage) {
-//        cell_data[i][j].voltage_error_count++;
-//      } else if (cell.voltage_pec_failure == true) {
-//        cell_data[i][j].voltage_error_count++;
-//      } else {
-//        cell_data[i][j].voltage_error_count = 0;
-//      }
-//
-//      if (cell.voltage_error_count == VOLTAGE_COUNT) {
-//        cell_data[i][j].voltage_error_count--;
-//        return true;
-//      }
-//
-//      if (cell.temperature >= BMS_high_temperature) {
-//        cell_data[i][j].temperature_error_count++;
-//      } else if (cell.temperature <= BMS_low_temperature) {
-//        cell_data[i][j].temperature_error_count++;
-//      } else if (cell.temperature_pec_failure == true) {
-//        cell_data[i][j].temperature_error_count++;
-//      } else {
-//        cell_data[i][j].temperature_error_count = 0;
-//      }
-//
-//      if (cell.temperature_error_count == TEMP_COUNT) {
-//        cell_data[i][j].temperature_error_count--;
-//        return true;
-//      }
-//
-//    }
-//  }
+  //  Cell cell;
+  //  for (uint8_t i = 0; i < TOTAL_IC; i++) {
+  //    for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
+  //
+  //      cell = cell_data[i][j];
+  //
+  //      if (cell.voltage >= BMS_high_voltage) {
+  //        cell_data[i][j].voltage_error_count++;
+  //      } else if (cell.voltage <= BMS_low_voltage) {
+  //        cell_data[i][j].voltage_error_count++;
+  //      } else if (cell.voltage_pec_failure == true) {
+  //        cell_data[i][j].voltage_error_count++;
+  //      } else {
+  //        cell_data[i][j].voltage_error_count = 0;
+  //      }
+  //
+  //      if (cell.voltage_error_count == VOLTAGE_COUNT) {
+  //        cell_data[i][j].voltage_error_count--;
+  //        return true;
+  //      }
+  //
+  //      if (cell.temperature >= BMS_high_temperature) {
+  //        cell_data[i][j].temperature_error_count++;
+  //      } else if (cell.temperature <= BMS_low_temperature) {
+  //        cell_data[i][j].temperature_error_count++;
+  //      } else if (cell.temperature_pec_failure == true) {
+  //        cell_data[i][j].temperature_error_count++;
+  //      } else {
+  //        cell_data[i][j].temperature_error_count = 0;
+  //      }
+  //
+  //      if (cell.temperature_error_count == TEMP_COUNT) {
+  //        cell_data[i][j].temperature_error_count--;
+  //        return true;
+  //      }
+  //
+  //    }
+  //  }
   return false;
 }
 
