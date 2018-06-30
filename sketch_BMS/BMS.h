@@ -51,7 +51,7 @@ typedef struct Cells {
 // Function declarations
 void BMS_Initialize();
 bool BMS_check();
-bool BMS_is_error();
+//bool BMS_is_error();
 
 uint16_t BMS_get_error_code();
 

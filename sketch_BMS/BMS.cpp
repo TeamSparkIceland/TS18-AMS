@@ -20,7 +20,17 @@ bool BMS_discharge_enabled = false;
 uint8_t discharge_part = 0;
 uint8_t discharge_completed = 0;
 
-static Cell cell_data[TOTAL_IC][12];
+static bool cell_data[TOTAL_IC][12];
+//static uint8_t discharge_state[18];
+////  ic0 reg0 | ic0 reg1 | ...   | ic12 reg11 | ic12 reg 12|
+//bool getDischargeState(uint8_t ic, uint8_t reg) {
+//  return (bool) ((discharge_state[ic*3] >> reg%4) & 0x1);
+//}
+//void setDischargeState(uint8_t ic, uint8_t reg, uint8_t state) {
+//  discharge_state[ic*3] = (discharge_state[ic*3] | (state*10 >> reg%4)
+//}
+
+
 static volatile uint8_t error_reset_counter = 0;
 static volatile uint8_t voltage_error_count = 0;
 static volatile uint8_t temperature_error_count = 0;
@@ -44,7 +54,7 @@ uint8_t tx_cfg[TOTAL_IC][6];
   |IC1 CFGR0     |IC1 CFGR1     |IC1 CFGR2     |IC1 CFGR3     |IC1 CFGR4     |IC1 CFGR5     |IC2 CFGR0     |IC2 CFGR1     | IC2 CFGR2    |  .....    |
 */
 
-uint8_t rx_cfg[TOTAL_IC][8];
+//uint8_t rx_cfg[TOTAL_IC][8];
 /* The rx_cfg[][8] array stores the data that is read back from a LTC6804-1 daisy chain.
    The configuration data for each IC  is stored in blocks of 8 bytes. Below is an table illustrating the array organization:
 
@@ -58,9 +68,9 @@ uint8_t rx_cfg[TOTAL_IC][8];
 /* void reset_configs()
    Put the default configuration in the tx_cfg
 */
-//                                     ??FE??
-const uint8_t BMS_default_config[6] = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00};
 void reset_configs() {
+  //                                     ??FE??
+  const uint8_t BMS_default_config[6] = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00};
   //uint16_t vuv = (((BMS_low_voltage * 10000)/16)-1)
   //uint16_t vov = 0;
   for (uint8_t i = 0; i < TOTAL_IC; i++) {
@@ -91,11 +101,9 @@ void BMS_Initialize() {
    @return the code of the last detected failure. 0 = success.
 */
 static uint16_t cell_voltage[TOTAL_IC][12];
-uint16_t cell_code;
-bool pec_error;
 bool check_cell_voltages() {
   error_reset_counter++;
-  pec_error = false;
+  bool pec_error = false;
   lowest_voltage = BMS_high_voltage;
   float voltage;
   BMS_debug && Serial.print("Voltages\r\n");
@@ -110,8 +118,7 @@ bool check_cell_voltages() {
 
   for (uint8_t k = 0; k < TOTAL_IC; k++) {
     for (uint8_t l = 0; l < 12; l++) {
-      cell_code = cell_voltage[k][l];
-      voltage = (float)(cell_code / 10000.0);
+      voltage = (float)(cell_voltage[k][l] / 10000.0);
       BMS_debug && Serial.print(voltage);
 
       if (voltage < lowest_voltage) {
@@ -337,9 +344,9 @@ float BMS_get_target_voltage() {
 /**
    @return true if there was an error during last BMS_check call.
 */
-bool BMS_is_error() {
-  return false;
-}
+//bool BMS_is_error() {
+//  return false;
+//}
 
 
 /**
@@ -360,20 +367,20 @@ bool discharge(uint8_t part) {
 
     for (uint8_t cell_id = part; cell_id < TOTAL_SENSORS; cell_id = cell_id + 3) {
 
-      if (cell_data[bms_id][cell_id].discharge_enabled == false) {
+      if (cell_data[bms_id][cell_id] == false) {
         continue;
       }
 
       if ((cell_id != part) && (cell_id != part + 3) && (cell_id != part + 6) && cell_id != part + 9) {
-        cell_data[bms_id][cell_id].discharge_enabled = false;
+        cell_data[bms_id][cell_id] = false;
         continue;
       }
 
       if ( (float) cell_voltage[bms_id][cell_id] / 10000.0 <= BMS_discharge_voltage) {
-        cell_data[bms_id][cell_id].discharge_enabled = false;
+        cell_data[bms_id][cell_id] = false;
       } else {
         completed = false;
-        cell_data[bms_id][cell_id].discharge_enabled = true;
+        cell_data[bms_id][cell_id] = true;
         discharge_bits |= 1u << cell_id;
       }
 
@@ -459,7 +466,7 @@ void BMS_set_discharge(bool state) {
       // Set enable discharge on all cells
       for (uint8_t i = 0; i < TOTAL_IC; i++) {
         for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-          cell_data[i][j].discharge_enabled = true;
+          cell_data[i][j] = true;
         }
       }
     }
@@ -468,7 +475,7 @@ void BMS_set_discharge(bool state) {
     reset_configs();
     for (uint8_t i = 0; i < TOTAL_IC; i++) {
       for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-        cell_data[i][j].discharge_enabled = false;
+        cell_data[i][j] = false;
       }
     }
   }
