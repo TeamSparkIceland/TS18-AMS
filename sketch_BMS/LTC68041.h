@@ -47,8 +47,8 @@ Copyright 2013 Linear Technology Corp. (LTC)
 #ifndef LTC68041_H
 #define LTC68041_H
 
-#define TOTAL_IC     1
-#define IO_BMS_CS    10
+#define TOTAL_IC     12
+#define IO_BMS_CS    13
 #define IO_BMS_CS_SetHigh()     digitalWrite(IO_BMS_CS,HIGH)
 #define IO_BMS_CS_SetLow()     digitalWrite(IO_BMS_CS,LOW)
 

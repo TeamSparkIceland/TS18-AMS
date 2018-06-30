@@ -20,7 +20,10 @@ bool BMS_discharge_enabled = false;
 uint8_t discharge_part = 0;
 uint8_t discharge_completed = 0;
 
-static bool cell_data[TOTAL_IC][12];
+static uint16_t cell_discharge[TOTAL_IC];
+//static bool cell_discharge[TOTAL_IC][12];
+//static uint16_t cell_temperature[TOTAL_IC][12];
+
 //static uint8_t discharge_state[18];
 ////  ic0 reg0 | ic0 reg1 | ...   | ic12 reg11 | ic12 reg 12|
 //bool getDischargeState(uint8_t ic, uint8_t reg) {
@@ -212,6 +215,7 @@ bool check_cell_temperatures() {
       temp_code = (uint16_t)((aux_codes[current_ic][1] << 8) + aux_codes[current_ic][0]);
       temp_code_div = (float)(temp_code / 10000.0);
       convVal = LookupTemperature(temp_code_div);
+      //cell_temperature[current_ic][sensor_id] = (uint16_t) (convVal*100);
       if (BMS_debug) {
         Serial.print("B");
         Serial.print(current_ic);
@@ -247,39 +251,37 @@ bool check_cell_temperatures() {
 /* void send_data_packet()
    Print report to serial
 */
-void send_data_packet() {
-  //  if (!BMS_debug) {
-  //    return;
-  //  }
-  //  for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
-  //    Serial.print(ic);
-  //    Serial.print("|");
-  //    for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
-  //      Serial.print(cell);
-  //      Serial.print("|");
-  //
-  //      if (cell_data[ic][cell].voltage_pec_failure == true) {
-  //        Serial.print("PEC|");
-  //      } else {
-  //        Serial.print((uint16_t)(cell_data[ic][cell].voltage * 1000));
-  //        Serial.print("|");
-  //      }
-  //
-  //      if (cell_data[ic][cell].temperature_pec_failure == true) {
-  //        Serial.print("PEC|");
-  //      } else {
-  //        Serial.print((uint16_t)(cell_data[ic][cell].temperature));
-  //        Serial.print("|");
-  //      }
-  //
-  //      if (cell_data[ic][cell].discharge_enabled == true) {
-  //        Serial.print("1|");
-  //      } else {
-  //        Serial.print("0|");
-  //      }
-  //    }
-  //    Serial.print("\r\n");
-  //  }
+void send_data_packet(bool eV, bool eT) {
+  if (BMS_debug) {
+    for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
+      Serial.print(ic);
+      Serial.print("|");
+
+      for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
+        if (eV) {
+          Serial.print("PEC|");
+        } else {
+          Serial.print(cell);
+          Serial.print("|");
+          Serial.print( cell_voltage[ic][cell] / 10 );
+          Serial.print("|");
+        }
+        if (eT) {
+          Serial.print("PEC|");
+        } else {
+          //          Serial.print(cell_temperature[ic][cell]);
+          Serial.print("|");
+        }
+        //if (cell_discharge[ic][cell] == true) {
+        if (bitRead(cell_discharge[ic],cell) == true) {
+          Serial.print("1|");
+        } else {
+          Serial.print("0|");
+        }
+      }
+    }
+    Serial.print("\r\n");
+  }
 }
 
 
@@ -289,52 +291,15 @@ void send_data_packet() {
 */
 bool BMS_check() {
   // Gather
+  bool errorVoltage = false;
+  bool errorTemperature = false;
   wakeup_sleep();
   if ( check_cell_voltages() )
-    return true;
+    errorVoltage =  true;
   if ( check_cell_temperatures())
-    return true;
-  //send_data_packet();
-
-  //  Cell cell;
-  //  for (uint8_t i = 0; i < TOTAL_IC; i++) {
-  //    for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-  //
-  //      cell = cell_data[i][j];
-  //
-  //      if (cell.voltage >= BMS_high_voltage) {
-  //        cell_data[i][j].voltage_error_count++;
-  //      } else if (cell.voltage <= BMS_low_voltage) {
-  //        cell_data[i][j].voltage_error_count++;
-  //      } else if (cell.voltage_pec_failure == true) {
-  //        cell_data[i][j].voltage_error_count++;
-  //      } else {
-  //        cell_data[i][j].voltage_error_count = 0;
-  //      }
-  //
-  //      if (cell.voltage_error_count == VOLTAGE_COUNT) {
-  //        cell_data[i][j].voltage_error_count--;
-  //        return true;
-  //      }
-  //
-  //      if (cell.temperature >= BMS_high_temperature) {
-  //        cell_data[i][j].temperature_error_count++;
-  //      } else if (cell.temperature <= BMS_low_temperature) {
-  //        cell_data[i][j].temperature_error_count++;
-  //      } else if (cell.temperature_pec_failure == true) {
-  //        cell_data[i][j].temperature_error_count++;
-  //      } else {
-  //        cell_data[i][j].temperature_error_count = 0;
-  //      }
-  //
-  //      if (cell.temperature_error_count == TEMP_COUNT) {
-  //        cell_data[i][j].temperature_error_count--;
-  //        return true;
-  //      }
-  //
-  //    }
-  //  }
-  return false;
+    errorTemperature =  true;
+  send_data_packet(errorVoltage, errorTemperature);
+  return errorVoltage || errorTemperature;
 }
 
 float BMS_get_target_voltage() {
@@ -367,20 +332,24 @@ bool discharge(uint8_t part) {
 
     for (uint8_t cell_id = part; cell_id < TOTAL_SENSORS; cell_id = cell_id + 3) {
 
-      if (cell_data[bms_id][cell_id] == false) {
+      if (bitRead(cell_discharge[bms_id],cell_id) == false) {
+      //if (cell_discharge[bms_id][cell_id] == false) {
         continue;
       }
 
       if ((cell_id != part) && (cell_id != part + 3) && (cell_id != part + 6) && cell_id != part + 9) {
-        cell_data[bms_id][cell_id] = false;
+        bitClear(cell_discharge[bms_id],cell_id);
+        //cell_discharge[bms_id][cell_id] = false;
         continue;
       }
 
       if ( (float) cell_voltage[bms_id][cell_id] / 10000.0 <= BMS_discharge_voltage) {
-        cell_data[bms_id][cell_id] = false;
+        bitClear(cell_discharge[bms_id],cell_id);
+        //cell_discharge[bms_id][cell_id] = false;
       } else {
         completed = false;
-        cell_data[bms_id][cell_id] = true;
+        bitSet(cell_discharge[bms_id], cell_id); 
+        //cell_discharge[bms_id][cell_id] = true;
         discharge_bits |= 1u << cell_id;
       }
 
@@ -466,7 +435,8 @@ void BMS_set_discharge(bool state) {
       // Set enable discharge on all cells
       for (uint8_t i = 0; i < TOTAL_IC; i++) {
         for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-          cell_data[i][j] = true;
+          bitSet(cell_discharge[i], j);
+          //cell_discharge[i][j] = true;
         }
       }
     }
@@ -475,7 +445,8 @@ void BMS_set_discharge(bool state) {
     reset_configs();
     for (uint8_t i = 0; i < TOTAL_IC; i++) {
       for (uint8_t j = 0; j < TOTAL_SENSORS; j++) {
-        cell_data[i][j] = false;
+        bitClear(cell_discharge[i], j);
+        //cell_discharge[i][j] = false;
       }
     }
   }
