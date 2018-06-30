@@ -16,14 +16,14 @@
 float lowest_voltage;
 float BMS_discharge_voltage;
 bool BMS_discharge_enabled = false;
-static DischargeState discharge_state;
+//static DischargeState discharge_state;
 uint8_t discharge_part = 0;
 uint8_t discharge_completed = 0;
 
 static Cell cell_data[TOTAL_IC][12];
-uint8_t error_reset_counter = 0;
-uint8_t voltage_error_count = 0;
-uint8_t temperature_error_count = 0;
+static volatile uint8_t error_reset_counter = 0;
+static volatile uint8_t voltage_error_count = 0;
+static volatile uint8_t temperature_error_count = 0;
 
 // variable for temperature measurement readings
 uint16_t aux_codes[TOTAL_IC][6];
@@ -93,10 +93,11 @@ void BMS_Initialize() {
 static uint16_t cell_voltage[TOTAL_IC][12];
 uint16_t cell_code;
 bool pec_error;
-bool get_cell_voltages() {
-  error_reset_coutner++;
+bool check_cell_voltages() {
+  error_reset_counter++;
   pec_error = false;
   lowest_voltage = BMS_high_voltage;
+  float voltage;
   BMS_debug && Serial.print("Voltages\r\n");
   wakeup_idle();
   LTC6804_adcv();  //---------------     Stuck    ------------------
@@ -113,8 +114,8 @@ bool get_cell_voltages() {
       voltage = (float)(cell_code / 10000.0);
       BMS_debug && Serial.print(voltage);
 
-      if (cell_data[k][l].voltage < lowest_voltage) {
-        lowest_voltage = cell_data[k][l].voltage;
+      if (voltage < lowest_voltage) {
+        lowest_voltage = voltage;
       }
       BMS_debug && Serial.print("\r\n");
 
@@ -159,7 +160,7 @@ void set_mux_address(uint8_t sensor_id) {
    has to talk to all the BMSs multiple times to get all the measurements.
    Return true if all measurements were within range, else false.
 */
-bool get_cell_temperatures() {
+bool check_cell_temperatures() {
   error_reset_counter++;
   bool result = true;
   bool pec_error = false;
@@ -368,7 +369,7 @@ bool discharge(uint8_t part) {
         continue;
       }
 
-      if (cell_data[bms_id][cell_id].voltage <= BMS_discharge_voltage) {
+      if ( (float) cell_voltage[bms_id][cell_id] / 10000.0 <= BMS_discharge_voltage) {
         cell_data[bms_id][cell_id].discharge_enabled = false;
       } else {
         completed = false;
@@ -412,8 +413,8 @@ bool discharge(uint8_t part) {
     */
 
     // Simulate for now
-    tx_cfg[bms_id][4] = 0x00FF & discharge_bits;
-    tx_cfg[bms_id][5] = (0x0F00 & discharge_bits) >> 8u;
+    //tx_cfg[bms_id][4] = 0x00FF & discharge_bits;
+    //tx_cfg[bms_id][5] = (0x0F00 & discharge_bits) >> 8u;
   }
   return completed;
 }
@@ -424,25 +425,25 @@ bool discharge(uint8_t part) {
    Temporary test function to verify communications between the AMS board and
    the BMSs.
 */
-void BMS_test_stuff() {
-  static uint16_t cell_codes[TOTAL_IC][12];
-  uint8_t result;
-  static uint8_t configs[1][6];
-  uint8_t default_config[6] = {0xFE, 0x7C, 0xAF, 0x41, 0x00, 0x00};
-  for (uint8_t i = 0; i < 1; i++) {
-    for (uint8_t j = 0; j < 6; j++) {
-      configs[i][j] = default_config[j];
-    }
-  }
-  wakeup_sleep();
-  LTC6804_wrcfg(tx_cfg);
-  delay(5);
-  LTC6804_adcv();
-  delay(5);
-  result = LTC6804_rdcv(CELL_CH_ALL,  cell_codes);
-  Serial.print("rdcv result: ");
-  Serial.println(result);
-}
+//void BMS_test_stuff() {
+//  static uint16_t cell_codes[TOTAL_IC][12];
+//  uint8_t result;
+//  static uint8_t configs[1][6];
+//  uint8_t default_config[6] = {0xFE, 0x7C, 0xAF, 0x41, 0x00, 0x00};
+//  for (uint8_t i = 0; i < 1; i++) {
+//    for (uint8_t j = 0; j < 6; j++) {
+//      configs[i][j] = default_config[j];
+//    }
+//  }
+//  wakeup_sleep();
+//  LTC6804_wrcfg(tx_cfg);
+//  delay(5);
+//  LTC6804_adcv();
+//  delay(5);
+//  result = LTC6804_rdcv(CELL_CH_ALL,  cell_codes);
+//  Serial.print("rdcv result: ");
+//  Serial.println(result);
+//}
 
 bool BMS_is_discharge_enabled() {
   return BMS_discharge_enabled;

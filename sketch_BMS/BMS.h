@@ -33,12 +33,12 @@ typedef struct Cells {
 //  bool temperature_pec_failure;
 //  uint8_t voltage_error_count;
 //  uint8_t temperature_error_count;
-//  bool discharge_enabled;
+  bool discharge_enabled;
 } Cell;
 
-typedef struct dischargeState {
-  bool state;
-} DischargeState;
+//typedef struct dischargeState {
+//  bool state;
+//} DischargeState;
 
 
 #define BMS_low_voltage      3.2   // V
@@ -57,7 +57,7 @@ uint16_t BMS_get_error_code();
 
 void BMS_set_thresholds(float cell_low, float cell_high, float sensor_low, float sensor_high);
 
-void BMS_test_stuff();
+//void BMS_test_stuff();
 
 bool BMS_is_discharge_enabled();
 float BMS_get_target_voltage();
