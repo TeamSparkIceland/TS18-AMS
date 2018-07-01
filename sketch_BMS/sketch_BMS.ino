@@ -40,8 +40,10 @@
 #include "UserInterface.h"
 #include "LTC68041.h"
 #include <SPI.h>
+#include "mcp_can.h"
 // Other files
 #include "BMS.h"
+#include "CAN.h"
 
 uint8_t TMR0IF;
 uint8_t counter = 1;
@@ -60,6 +62,7 @@ void setup()
   pinMode(IO_BMS_CS, OUTPUT);
   IO_BMS_CS_SetHigh();
   BMS_Initialize();
+  can_init();
   TMR0IF = 0;
 }
 

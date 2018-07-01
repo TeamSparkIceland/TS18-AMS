@@ -11,32 +11,23 @@
 #include "UserInterface.h"
 #include "LTC68041.h"
 #include "BMS.h"
+#include "CAN.h"
 #include "tmap.h"
 
 float lowest_voltage;
 float BMS_discharge_voltage;
 bool BMS_discharge_enabled = false;
-//static DischargeState discharge_state;
 uint8_t discharge_part = 0;
 uint8_t discharge_completed = 0;
 
 static uint16_t cell_discharge[TOTAL_IC];
-//static bool cell_discharge[TOTAL_IC][12];
 static uint16_t cell_temperature[TOTAL_IC][12];
 
-//static uint8_t discharge_state[18];
-////  ic0 reg0 | ic0 reg1 | ...   | ic12 reg11 | ic12 reg 12|
-//bool getDischargeState(uint8_t ic, uint8_t reg) {
-//  return (bool) ((discharge_state[ic*3] >> reg%4) & 0x1);
-//}
-//void setDischargeState(uint8_t ic, uint8_t reg, uint8_t state) {
-//  discharge_state[ic*3] = (discharge_state[ic*3] | (state*10 >> reg%4)
-//}
-
-
+// error counters too account for random noise
 static volatile uint8_t error_reset_counter = 0;
 static volatile uint8_t voltage_error_count = 0;
 static volatile uint8_t temperature_error_count = 0;
+static volatile uint8_t current_error_count = 0;
 
 // variable for temperature measurement readings
 uint16_t aux_codes[TOTAL_IC][6];
@@ -56,16 +47,6 @@ uint8_t tx_cfg[TOTAL_IC][6];
   |--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|-----------|
   |IC1 CFGR0     |IC1 CFGR1     |IC1 CFGR2     |IC1 CFGR3     |IC1 CFGR4     |IC1 CFGR5     |IC2 CFGR0     |IC2 CFGR1     | IC2 CFGR2    |  .....    |
 */
-
-//uint8_t rx_cfg[TOTAL_IC][8];
-/* The rx_cfg[][8] array stores the data that is read back from a LTC6804-1 daisy chain.
-   The configuration data for each IC  is stored in blocks of 8 bytes. Below is an table illustrating the array organization:
-
-  |rx_config[0][0]|rx_config[0][1]|rx_config[0][2]|rx_config[0][3]|rx_config[0][4]|rx_config[0][5]|rx_config[0][6]  |rx_config[0][7] |rx_config[1][0]|rx_config[1][1]|  .....    |
-  |---------------|---------------|---------------|---------------|---------------|---------------|-----------------|----------------|---------------|---------------|-----------|
-  |IC1 CFGR0      |IC1 CFGR1      |IC1 CFGR2      |IC1 CFGR3      |IC1 CFGR4      |IC1 CFGR5      |IC1 PEC High     |IC1 PEC Low     |IC2 CFGR0      |IC2 CFGR1      |  .....    |
-*/
-
 
 
 /* void reset_configs()
@@ -97,11 +78,9 @@ void BMS_Initialize() {
 }
 
 
-/**
-   Checks the voltages of all cells on all BMSs. This is a time-consuming
-   operation as the system has to talk to all the BMSs multiple times to get
-   all the measurements.
-   @return the code of the last detected failure. 0 = success.
+/* bool check_cell_voltages()
+   Checks the voltages of all cells on all BMSs.
+   Returns true if error exceeds error count. If everything is okay false is returned
 */
 static uint16_t cell_voltage[TOTAL_IC][12];
 bool check_cell_voltages() {
@@ -143,14 +122,14 @@ bool check_cell_voltages() {
     voltage_error_count = 0;
     return true;
   }
-  if ( error_reset_counter >= 10) {
+  if ( error_reset_counter >= RESET_ERROR_COUNT) {
     voltage_error_count = 0;
     error_reset_counter = 0;
   }
   return false;
 }
 
-/**
+/* void set_mux_address(uint8_t sensor_id)
    Modify the BMS configuration variable with the right MUX address to read
    from.
    @param sensor_id is the sensor (0-11) to read from next.
@@ -166,9 +145,8 @@ void set_mux_address(uint8_t sensor_id) {
 
 
 /* bool check_cell_temperatures()
-   Checks the temperatures of all cells on all BMSs. This is a VERY time-consuming operation as the system
-   has to talk to all the BMSs multiple times to get all the measurements.
-   Return true if all measurements were within range, else false.
+   Checks the temperatures of all cells on all BMSs
+   Return true if error counter exceed maximum else true.
 */
 bool check_cell_temperatures() {
   error_reset_counter++;
@@ -240,7 +218,7 @@ bool check_cell_temperatures() {
     temperature_error_count = 0;
     return true;
   }
-  if ( error_reset_counter >= 10) {
+  if ( error_reset_counter >= RESET_ERROR_COUNT) {
     temperature_error_count = 0;
     error_reset_counter = 0;
   }
@@ -248,10 +226,10 @@ bool check_cell_temperatures() {
 }
 
 
-/* void send_data_packet()
+/* void send_data_packet(uint8_t error)
    Print report to serial
 */
-void send_data_packet(bool eV, bool eT) {
+void send_data_packet(uint8_t error) {
   if (!BMS_debug) {
     for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
       Serial.print("D");
@@ -259,7 +237,7 @@ void send_data_packet(bool eV, bool eT) {
       Serial.print("|");
 
       for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
-        if (eV) {
+        if (bitRead(error,4) == 1) {
           Serial.print("PEC|");
         } else {
           Serial.print(cell);
@@ -267,7 +245,7 @@ void send_data_packet(bool eV, bool eT) {
           Serial.print( cell_voltage[ic][cell] / 10 );
           Serial.print("|");
         }
-        if (eT) {
+        if (bitRead(error,3) == 1)  {
           Serial.print("PEC|");
         } else {
           Serial.print(cell_temperature[ic][cell]);
@@ -287,20 +265,33 @@ void send_data_packet(bool eV, bool eT) {
 
 
 /* bool BMS_check()
-   Read and check all voltage levels and temperature
-   If no tolerances are exceeded and no errors occur "false" is returned otherwise in the event of failure "false" is returned
+   Read and check all voltage levels and temperature and current. Print out report.
+   If no tolerances are exceeded and no errors occur "true" is returned otherwise in the event of failure "false" is returned
 */
 bool BMS_check() {
   // Gather
-  bool errorVoltage = false;
-  bool errorTemperature = false;
+  uint8_t error = 0; // | bit 4: voltage | bit 3: temperature | bit 2: current | bit 1:  |
+
   wakeup_sleep();
   if ( check_cell_voltages() )
-    errorVoltage =  true;
+    bitSet(error, 4);
   if ( check_cell_temperatures())
-    errorTemperature =  true;
-  send_data_packet(errorVoltage, errorTemperature);
-  return errorVoltage || errorTemperature;
+    bitSet(error, 3);
+
+  current_measurement = can_read_current();
+  if (current_measurement == -3.4028235E+38 || current_measurement < PWR_min_current || current_measurement >= PWR_max_current)
+    current_error_count++;
+  else if( error_reset_counter >= RESET_ERROR_COUNT)
+    current_error_count = 0;
+  if (current_error_count >= CURRENT_COUNT)
+    bitSet(error, 2);
+
+  Serial.print("Current measured: ");
+  Serial.println(current_measurement);
+  send_data_packet(error);
+  can_send(error);
+
+  return error > 0;
 }
 
 float BMS_get_target_voltage() {
@@ -324,6 +315,7 @@ uint16_t BMS_get_error_code() {
 }
 
 bool discharge(uint8_t part) {
+  
   uint16_t discharge_bits = 0; // Needs to have bits >= TOTAL_SENSORS
   bool completed = true;
 
@@ -353,7 +345,6 @@ bool discharge(uint8_t part) {
         //cell_discharge[bms_id][cell_id] = true;
         discharge_bits |= 1u << cell_id;
       }
-
     }
 
     // For CFGR4 we have DCC8 DCC7 DCC6 DCC5 DCC4  DCC3  DCC2  DCC1
@@ -380,8 +371,6 @@ bool discharge(uint8_t part) {
        -------------------
          00000000 11011011
 
-
-
        Better to take the top half of the config
 
          xxxxxxxx 00000000
@@ -389,38 +378,12 @@ bool discharge(uint8_t part) {
 
     */
 
-    // Simulate for now
+    // These bit changes make the cells discharge
     tx_cfg[bms_id][4] = 0x00FF & discharge_bits;
     tx_cfg[bms_id][5] = (0x0F00 & discharge_bits) >> 8u;
   }
   return completed;
 }
-
-
-
-/**
-   Temporary test function to verify communications between the AMS board and
-   the BMSs.
-*/
-//void BMS_test_stuff() {
-//  static uint16_t cell_codes[TOTAL_IC][12];
-//  uint8_t result;
-//  static uint8_t configs[1][6];
-//  uint8_t default_config[6] = {0xFE, 0x7C, 0xAF, 0x41, 0x00, 0x00};
-//  for (uint8_t i = 0; i < 1; i++) {
-//    for (uint8_t j = 0; j < 6; j++) {
-//      configs[i][j] = default_config[j];
-//    }
-//  }
-//  wakeup_sleep();
-//  LTC6804_wrcfg(tx_cfg);
-//  delay(5);
-//  LTC6804_adcv();
-//  delay(5);
-//  result = LTC6804_rdcv(CELL_CH_ALL,  cell_codes);
-//  Serial.print("rdcv result: ");
-//  Serial.println(result);
-//}
 
 bool BMS_is_discharge_enabled() {
   return BMS_discharge_enabled;
@@ -489,8 +452,7 @@ void BMS_handle_discharge() {
   }
 }
 
-/*
-   On Discharge Request (CDEA) or (cdea)
+/* On Discharge Request (CDEA) or (cdea)
    Go through all cells and pick the lowest voltage as threshold voltage
    While doing so, switch discharge on for all cells
 
@@ -500,11 +462,6 @@ void BMS_handle_discharge() {
    When discharge is decided for each cell it's added to a bitmask that gets
    applied to the bms after the cell-loop has finished
 
-*/
-
-
-
-/*
    Part argument stands for which of 3 possible discharge configurations toad
    use: 0: discharge 0, 3, 6, 9
         1: discharge 1, 4, 7, 10

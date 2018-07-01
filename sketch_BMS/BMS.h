@@ -21,31 +21,16 @@ extern "C" {
 #define TOTAL_SENSORS 12
 #define TEMP_COUNT 5
 #define VOLTAGE_COUNT 5
-
-//#define TOTAL_IC  12  // number of ICs in the daisy chain
-
-
-// Structure for containing values for each individual cell
-//typedef struct Cells {
-//  float voltage;
-//  float temperature;
-//  bool voltage_pec_failure;
-//  bool temperature_pec_failure;
-//  uint8_t voltage_error_count;
-//  uint8_t temperature_error_count;
-//  bool discharge_enabled;
-//} Cell;
-
-//typedef struct dischargeState {
-//  bool state;
-//} DischargeState;
+#define CURRENT_COUNT 2
+#define RESET_ERROR_COUNT 10
 
 
-#define BMS_low_voltage      3.2   // V
-#define BMS_high_voltage     4.18  // V
-#define BMS_low_temperature  5.0   // Degrees C
-#define BMS_high_temperature 58.0  // Degrees C
-
+#define BMS_low_voltage       3.2   // V
+#define BMS_high_voltage      4.18  // V
+#define BMS_low_temperature   5.0   // Degrees C
+#define BMS_high_temperature  58.0  // Degrees C
+#define PWR_max_current       150.0 //A
+#define PWR_min_current      -12.0 //A
 
 
 // Function declarations
@@ -54,11 +39,7 @@ bool BMS_check();
 //bool BMS_is_error();
 
 uint16_t BMS_get_error_code();
-
 void BMS_set_thresholds(float cell_low, float cell_high, float sensor_low, float sensor_high);
-
-//void BMS_test_stuff();
-
 bool BMS_is_discharge_enabled();
 float BMS_get_target_voltage();
 void BMS_set_discharge(bool state);
