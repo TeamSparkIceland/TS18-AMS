@@ -31,7 +31,6 @@
 
 #define DISCHARGE_CYCLE 60
 #define REST_CYCLE 30
-int TMR0IF;
 
 // Libraries
 #include <Arduino.h>
@@ -44,7 +43,7 @@ int TMR0IF;
 // Other files
 #include "BMS.h"
 
-
+uint8_t TMR0IF;
 uint8_t counter = 1;
 bool reverse = false;
 uint8_t timer_counter;
@@ -66,9 +65,7 @@ void setup()
 
 void loop()
 {
-  Serial.println("Loop");
-  delay(50);
-  
+
   // Check data for tolerance levels
   if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
@@ -84,7 +81,7 @@ void loop()
     BMS_set_discharge(false);
   }
 
-  if (TMR0IF > 0) {
+  if (TMR0IF >= 20) {
     timer_counter--;
     if (timer_counter == 0) {
       discharge_rest_period = !discharge_rest_period;
@@ -110,7 +107,8 @@ void loop()
       }
     }
   }
-
+  TMR0IF++;
+  
   if (discharge_rest_period == false) {
     BMS_handle_discharge();
   } else {

@@ -16,7 +16,7 @@ extern "C" {
 #include <stdint.h>
 
 // Define wether to print out and excecute debug commands
-#define BMS_debug  true
+#define BMS_debug  false
 
 #define TOTAL_SENSORS 12
 #define TEMP_COUNT 5

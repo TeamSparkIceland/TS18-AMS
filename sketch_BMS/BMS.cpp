@@ -22,7 +22,7 @@ uint8_t discharge_completed = 0;
 
 static uint16_t cell_discharge[TOTAL_IC];
 //static bool cell_discharge[TOTAL_IC][12];
-//static uint16_t cell_temperature[TOTAL_IC][12];
+static uint16_t cell_temperature[TOTAL_IC][12];
 
 //static uint8_t discharge_state[18];
 ////  ic0 reg0 | ic0 reg1 | ...   | ic12 reg11 | ic12 reg 12|
@@ -215,7 +215,7 @@ bool check_cell_temperatures() {
       temp_code = (uint16_t)((aux_codes[current_ic][1] << 8) + aux_codes[current_ic][0]);
       temp_code_div = (float)(temp_code / 10000.0);
       convVal = LookupTemperature(temp_code_div);
-      //cell_temperature[current_ic][sensor_id] = (uint16_t) (convVal*100);
+      cell_temperature[current_ic][sensor_id] = (uint16_t) (convVal);
       if (BMS_debug) {
         Serial.print("B");
         Serial.print(current_ic);
@@ -252,8 +252,9 @@ bool check_cell_temperatures() {
    Print report to serial
 */
 void send_data_packet(bool eV, bool eT) {
-  if (BMS_debug) {
+  if (!BMS_debug) {
     for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
+      Serial.print("D");
       Serial.print(ic);
       Serial.print("|");
 
@@ -269,18 +270,18 @@ void send_data_packet(bool eV, bool eT) {
         if (eT) {
           Serial.print("PEC|");
         } else {
-          //          Serial.print(cell_temperature[ic][cell]);
+          Serial.print(cell_temperature[ic][cell]);
           Serial.print("|");
         }
         //if (cell_discharge[ic][cell] == true) {
-        if (bitRead(cell_discharge[ic],cell) == true) {
+        if (bitRead(cell_discharge[ic], cell) == true) {
           Serial.print("1|");
         } else {
           Serial.print("0|");
         }
       }
+      Serial.print("\r\n");
     }
-    Serial.print("\r\n");
   }
 }
 
@@ -332,23 +333,23 @@ bool discharge(uint8_t part) {
 
     for (uint8_t cell_id = part; cell_id < TOTAL_SENSORS; cell_id = cell_id + 3) {
 
-      if (bitRead(cell_discharge[bms_id],cell_id) == false) {
-      //if (cell_discharge[bms_id][cell_id] == false) {
+      if (bitRead(cell_discharge[bms_id], cell_id) == false) {
+        //if (cell_discharge[bms_id][cell_id] == false) {
         continue;
       }
 
       if ((cell_id != part) && (cell_id != part + 3) && (cell_id != part + 6) && cell_id != part + 9) {
-        bitClear(cell_discharge[bms_id],cell_id);
+        bitClear(cell_discharge[bms_id], cell_id);
         //cell_discharge[bms_id][cell_id] = false;
         continue;
       }
 
       if ( (float) cell_voltage[bms_id][cell_id] / 10000.0 <= BMS_discharge_voltage) {
-        bitClear(cell_discharge[bms_id],cell_id);
+        bitClear(cell_discharge[bms_id], cell_id);
         //cell_discharge[bms_id][cell_id] = false;
       } else {
         completed = false;
-        bitSet(cell_discharge[bms_id], cell_id); 
+        bitSet(cell_discharge[bms_id], cell_id);
         //cell_discharge[bms_id][cell_id] = true;
         discharge_bits |= 1u << cell_id;
       }
@@ -389,8 +390,8 @@ bool discharge(uint8_t part) {
     */
 
     // Simulate for now
-    //tx_cfg[bms_id][4] = 0x00FF & discharge_bits;
-    //tx_cfg[bms_id][5] = (0x0F00 & discharge_bits) >> 8u;
+    tx_cfg[bms_id][4] = 0x00FF & discharge_bits;
+    tx_cfg[bms_id][5] = (0x0F00 & discharge_bits) >> 8u;
   }
   return completed;
 }
@@ -469,8 +470,9 @@ void BMS_handle_discharge() {
   }
 
   Serial.print("Discharging...\r\n");
-  Serial.print("Target voltage (V): ");
-  Serial.println(BMS_discharge_voltage);
+  Serial.print("Target voltage ");
+  Serial.print((uint16_t) (BMS_discharge_voltage * 1000));
+  Serial.print(" V\r\n");
   if (discharge(discharge_part) == true) {
     discharge_completed |= 1u << discharge_part;
   }
