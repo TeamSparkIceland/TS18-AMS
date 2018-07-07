@@ -32,7 +32,6 @@ void init_can() {
    Try to read current measurment
 */
 float can_read_current() {
-
   uint32_t t = millis();
   while (millis() - t < max_current_read_time) {
     if (CAN_MSGAVAIL == CAN.checkReceive()) {
@@ -49,11 +48,10 @@ float can_read_current() {
     }
   }
   return -3.4028235E+38; // No current measurment revieved
-
 }
 
-void can_send(uint16_t error) {
-  CAN.sendMsgBuf(0x01, 0, sizeof(msg) + 4, msg);
+void can_send(uint16_t error, uint16_t cell_voltage[][12], uint16_t cell_temperature[][12], uint16_t cell_discharge[]) {
+  //CAN.sendMsgBuf(0x01, 0, sizeof(msg) + 4, msg);
   uint16_t id_ic;
   uint16_t id_cell;
   for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {

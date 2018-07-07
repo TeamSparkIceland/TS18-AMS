@@ -62,7 +62,7 @@ void setup()
   pinMode(IO_BMS_CS, OUTPUT);
   IO_BMS_CS_SetHigh();
   BMS_Initialize();
-  can_init();
+  init_can();
   TMR0IF = 0;
 }
 

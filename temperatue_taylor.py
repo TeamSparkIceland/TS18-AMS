@@ -225,11 +225,13 @@ p5 = np.poly1d( np.polyfit(v,t,5));
 t = np.linspace(0,100,201);
 v = np.array(v);
 #%% Error
-p_coeff = np.polyfit(v,t,5);
+p_coeff = np.polyfit(v,t,6);
 p = np.poly1d( p_coeff);
 #plt.plot(v,p(v))
 plt.plot(v,t-p(v))
 print(p_coeff)
+print("Average abs error")
+print(np.mean(np.abs(t-p(v))))
 # Max error
 # p1 12.5
 # p2 6

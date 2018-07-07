@@ -1,6 +1,6 @@
 
-#ifndef TMAP_H
-#define  TMAP_H
+#ifndef CAN_H
+#define  CAN_H
 
 
 #define SPI_CS_PIN             9
@@ -14,9 +14,9 @@ union Data {    // Used to convert char to float
 };
 
 
-
+void init_can();
 float can_read_current();
-
+void can_send(uint16_t error, uint16_t cell_voltage[][12], uint16_t cell_temperature[][12], uint16_t cell_discharge[]);
 
 
 #endif  /* TMAP_H */

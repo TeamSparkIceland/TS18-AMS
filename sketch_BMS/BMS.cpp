@@ -10,9 +10,9 @@
 #include "LT_SPI.h"
 #include "UserInterface.h"
 #include "LTC68041.h"
+#include "tmap.h"
 #include "BMS.h"
 #include "CAN.h"
-#include "tmap.h"
 
 float lowest_voltage;
 float BMS_discharge_voltage;
@@ -191,8 +191,7 @@ bool check_cell_temperatures() {
     for (uint8_t current_ic = 0; current_ic < TOTAL_IC; current_ic++)
     {
       temp_code = (uint16_t)((aux_codes[current_ic][1] << 8) + aux_codes[current_ic][0]);
-      temp_code_div = (float)(temp_code / 10000.0);
-      convVal = LookupTemperature(temp_code_div);
+      convVal = LookupTemperature((float)(temp_code / 10000.0));
       cell_temperature[current_ic][sensor_id] = (uint16_t) (convVal);
       if (BMS_debug) {
         Serial.print("B");
@@ -278,7 +277,8 @@ bool BMS_check() {
   if ( check_cell_temperatures())
     bitSet(error, 3);
 
-  current_measurement = can_read_current();
+  // Check current measurment from Power meter over CAN-BUS
+  float current_measurement = can_read_current();
   if (current_measurement == -3.4028235E+38 || current_measurement < PWR_min_current || current_measurement >= PWR_max_current)
     current_error_count++;
   else if( error_reset_counter >= RESET_ERROR_COUNT)
@@ -289,9 +289,9 @@ bool BMS_check() {
   Serial.print("Current measured: ");
   Serial.println(current_measurement);
   send_data_packet(error);
-  can_send(error);
+  can_send(error, cell_voltage, cell_temperature, cell_discharge);
 
-  return error > 0;
+  return error > 0; // Returns true if there is error and triggers shutdown
 }
 
 float BMS_get_target_voltage() {
