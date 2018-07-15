@@ -35,6 +35,7 @@ extern "C" {
 
 // Function declarations
 void BMS_Initialize();
+void send_data_packet();
 bool BMS_check();
 //bool BMS_is_error();
 

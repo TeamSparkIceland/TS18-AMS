@@ -22,12 +22,14 @@ uint8_t discharge_completed = 0;
 
 static uint16_t cell_discharge[TOTAL_IC];
 static uint16_t cell_temperature[TOTAL_IC][12];
+static float current_measurement;
 
 // error counters too account for random noise
 static volatile uint8_t error_reset_counter = 0;
 static volatile uint8_t voltage_error_count = 0;
 static volatile uint8_t temperature_error_count = 0;
 static volatile uint8_t current_error_count = 0;
+static uint8_t error = 0; // | bit 4: voltage | bit 3: temperature | bit 2: current | bit 1:  |
 
 // variable for temperature measurement readings
 uint16_t aux_codes[TOTAL_IC][6];
@@ -69,7 +71,7 @@ void reset_configs() {
    Initializes the AMS isoSPI module and the BMSs.
 */
 void BMS_Initialize() {
-  quikeval_SPI_connect();
+  //quikeval_SPI_connect();
   spi_enable(SPI_CLOCK_DIV16); // This will set the Linduino to have a 1MHz Clock
   LTC6804_initialize();
   reset_configs();
@@ -183,7 +185,7 @@ bool check_cell_temperatures() {
     error = LTC6804_rdaux(1,  aux_codes); // Set to read back aux register 1
     if (error == -1)
     {
-      Serial.print("RDAUX error\r\n");
+      BMS_debug && Serial.print("RDAUX error\r\n");
       result = false;
       pec_error = true;
       //break;
@@ -228,8 +230,7 @@ bool check_cell_temperatures() {
 /* void send_data_packet(uint8_t error)
    Print report to serial
 */
-void send_data_packet(uint8_t error) {
-  if (!BMS_debug) {
+void send_data_packet() {
     for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
       Serial.print("D");
       Serial.print(ic);
@@ -259,9 +260,10 @@ void send_data_packet(uint8_t error) {
       }
       Serial.print("\r\n");
     }
-  }
+    Serial.print("C|");
+    Serial.print(current_measurement);
+    Serial.print("\r\n");
 }
-
 
 /* bool BMS_check()
    Read and check all voltage levels and temperature and current. Print out report.
@@ -269,7 +271,7 @@ void send_data_packet(uint8_t error) {
 */
 bool BMS_check() {
   // Gather
-  uint8_t error = 0; // | bit 4: voltage | bit 3: temperature | bit 2: current | bit 1:  |
+  error = 0; // | bit 4: voltage | bit 3: temperature | bit 2: current | bit 1:  |
 
   wakeup_sleep();
   if ( check_cell_voltages() )
@@ -278,18 +280,16 @@ bool BMS_check() {
     bitSet(error, 3);
 
   // Check current measurment from Power meter over CAN-BUS
-  float current_measurement = can_read_current();
-  if (current_measurement == -3.4028235E+38 || current_measurement < PWR_min_current || current_measurement >= PWR_max_current)
+  current_measurement = can_read_current();
+  if (current_measurement < PWR_min_current || current_measurement >= PWR_max_current)
     current_error_count++;
   else if( error_reset_counter >= RESET_ERROR_COUNT)
     current_error_count = 0;
   if (current_error_count >= CURRENT_COUNT)
     bitSet(error, 2);
 
-  Serial.print("Current measured: ");
-  Serial.println(current_measurement);
-  send_data_packet(error);
-  can_send(error, cell_voltage, cell_temperature, cell_discharge);
+  send_data_packet();
+  //can_send(error, cell_voltage, cell_temperature, cell_discharge);
 
   return error > 0; // Returns true if there is error and triggers shutdown
 }

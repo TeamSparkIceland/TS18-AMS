@@ -3,10 +3,10 @@
 #define  CAN_H
 
 
-#define SPI_CS_PIN             9
-#define PWR_current_id         0x525
-#define max_current_read_time  40 //ms
-#define BMS_CAN_ID             0x600
+#define SPI_CS_PIN             11
+#define PWR_current_id         0x521
+#define max_current_read_time  100 //ms
+#define BMS_CAN_ID             0x200
 
 union Data {    // Used to convert char to float
   char data_buf[4];

@@ -58,11 +58,13 @@ bool discharge_rest_period = false;
 
 void setup()
 {
+  pinMode(5,OUTPUT);
+  digitalWrite(5,HIGH);
   Serial.begin(115200);
   pinMode(IO_BMS_CS, OUTPUT);
   IO_BMS_CS_SetHigh();
-  BMS_Initialize();
   init_can();
+  BMS_Initialize();
   TMR0IF = 0;
 }
 
@@ -72,10 +74,11 @@ void loop()
   // Check data for tolerance levels
   if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
-    IO_BMS_CS_SetLow();
+    digitalWrite(5,LOW);
   } else {
-    IO_BMS_CS_SetHigh();
+    digitalWrite(5,HIGH);
   }
+  
   if ((enable_discharge) && (!BMS_is_discharge_enabled())) {
     BMS_set_discharge(true);
     Serial.print("Discharge Voltage: ");
@@ -84,7 +87,7 @@ void loop()
     BMS_set_discharge(false);
   }
 
-  if (TMR0IF >= 20) {
+  if (TMR0IF >= 10) {
     timer_counter--;
     if (timer_counter == 0) {
       discharge_rest_period = !discharge_rest_period;
@@ -106,6 +109,9 @@ void loop()
           break;
         case 'E':
           enable_discharge = true;
+          break;
+        case 'R':
+          send_data_packet();
           break;
       }
     }
