@@ -19,7 +19,7 @@ Copyright 2013 Linear Technology Corp. (LTC)
 
 
 
-#define TOTAL_IC     8   // Number of ICs in the Daisy chain
+#define TOTAL_IC     12   // Number of ICs in the Daisy chain
 #define IO_BMS_CS    13  // 13   Chip select pin for BMS
 #define IO_BMS_CS_SetHigh()     digitalWrite(IO_BMS_CS,HIGH)   // Deselect BMS for SPI communication
 #define IO_BMS_CS_SetLow()     digitalWrite(IO_BMS_CS,LOW)     // Select BMS for SPI communication

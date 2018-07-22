@@ -208,7 +208,7 @@ bool check_cell_temperatures() {
       }
       if ( convVal >= BMS_high_temperature )
         temperature_error_count++;
-      if ( convVal <= BMS_low_temperature )
+      if ( convVal <= BMS_low_temperature )  //&& !(ic ==  id == ))
         temperature_error_count++;
     }
   }
@@ -237,14 +237,14 @@ void send_data_packet() {
     Serial.print("|");
 
     for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
-      if (bitRead(error, 4) == 1) {
-        Serial.print("PEC|");
-      } else {
+      //if (bitRead(error, 4) == 1) {
+      //  Serial.print("PEC|");
+      //} else {
         Serial.print(cell);
         Serial.print("|");
         Serial.print( cell_voltage[ic][cell] / 10 );
         Serial.print("|");
-      }
+      //}
       //if (bitRead(error, 3) == 1)  {
       //  Serial.print("PEC|");
       //} else {
