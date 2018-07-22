@@ -23,6 +23,7 @@ uint8_t discharge_completed = 0;
 static uint16_t cell_discharge[TOTAL_IC];
 static uint16_t cell_temperature[TOTAL_IC][12];
 static float current_measurement;
+static uint8_t TSAL;  // |bit: 0 TSAL 0| ... |bit: 3 TSAL 3| wa | sted | spa | ce |
 
 // error counters too account for random noise
 static volatile uint8_t error_reset_counter = 0;
@@ -72,7 +73,7 @@ void reset_configs() {
 */
 void BMS_Initialize() {
   //quikeval_SPI_connect();
-  spi_enable(SPI_CLOCK_DIV16); // This will set the Linduino to have a 1MHz Clock
+  spi_enable(); // This will set the Linduino to have a 1MHz Clock
   LTC6804_initialize();
   reset_configs();
   LTC6804_wrcfg( tx_cfg); // ---------------     Stuck    ------------------
@@ -231,38 +232,53 @@ bool check_cell_temperatures() {
    Print report to serial
 */
 void send_data_packet() {
-    for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
-      Serial.print("D");
-      Serial.print(ic);
-      Serial.print("|");
+  for (uint8_t ic = 0; ic != TOTAL_IC; ic++) {
+    Serial.print("D");
+    Serial.print(ic);
+    Serial.print("|");
 
-      for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
-        if (bitRead(error,4) == 1) {
-          Serial.print("PEC|");
-        } else {
-          Serial.print(cell);
-          Serial.print("|");
-          Serial.print( cell_voltage[ic][cell] / 10 );
-          Serial.print("|");
-        }
-        if (bitRead(error,3) == 1)  {
-          Serial.print("PEC|");
-        } else {
-          Serial.print(cell_temperature[ic][cell]);
-          Serial.print("|");
-        }
-        //if (cell_discharge[ic][cell] == true) {
-        if (bitRead(cell_discharge[ic], cell) == true) {
-          Serial.print("1|");
-        } else {
-          Serial.print("0|");
-        }
+    for (uint8_t cell = 0; cell != TOTAL_SENSORS; cell++) {
+      if (bitRead(error, 4) == 1) {
+        Serial.print("PEC|");
+      } else {
+        Serial.print(cell);
+        Serial.print("|");
+        Serial.print( cell_voltage[ic][cell] / 10 );
+        Serial.print("|");
       }
-      Serial.print("\r\n");
+      //if (bitRead(error, 3) == 1)  {
+      //  Serial.print("PEC|");
+      //} else {
+        Serial.print(cell_temperature[ic][cell]);
+        Serial.print("|");
+      //}
+      //if (cell_discharge[ic][cell] == true) {
+      if (bitRead(cell_discharge[ic], cell) == true) {
+        Serial.print("1|");
+      } else {
+        Serial.print("0|");
+      }
     }
-    Serial.print("C|");
-    Serial.print(current_measurement);
     Serial.print("\r\n");
+  }
+  Serial.print("S|");
+  Serial.print((int16_t) (lowest_voltage * 1000));
+  Serial.print("|\r\n");
+  Serial.print("C|");
+  Serial.print((int16_t) current_measurement);
+  Serial.print("|\r\n");
+  Serial.print("T0|");
+  Serial.print(bitRead(TSAL,0));
+  Serial.print("|\r\n");
+  Serial.print("T1|");
+  Serial.print(bitRead(TSAL,1));
+  Serial.print("|\r\n");
+  Serial.print("T2|");
+  Serial.print(bitRead(TSAL,2));
+  Serial.print("|\r\n");
+  Serial.print("T3|");
+  Serial.print(bitRead(TSAL,3));
+  Serial.print("|\r\n");
 }
 
 /* bool BMS_check()
@@ -283,12 +299,32 @@ bool BMS_check() {
   current_measurement = can_read_current();
   if (current_measurement < PWR_min_current || current_measurement >= PWR_max_current)
     current_error_count++;
-  else if( error_reset_counter >= RESET_ERROR_COUNT)
+  else if ( error_reset_counter >= RESET_ERROR_COUNT)
     current_error_count = 0;
   if (current_error_count >= CURRENT_COUNT)
     bitSet(error, 2);
 
-  send_data_packet();
+  if (digitalRead(TSAL_PIN_0))
+    bitSet(TSAL, 0);
+  else
+    bitClear(TSAL, 0);
+
+  if (digitalRead(TSAL_PIN_1))
+    bitSet(TSAL, 1);
+  else
+    bitClear(TSAL, 1);
+
+  if (digitalRead(TSAL_PIN_2))
+    bitSet(TSAL, 2);
+  else
+    bitClear(TSAL, 2);
+
+  if (digitalRead(TSAL_PIN_3))
+    bitSet(TSAL, 3);
+  else
+    bitClear(TSAL, 3);
+
+  //send_data_packet();
   //can_send(error, cell_voltage, cell_temperature, cell_discharge);
 
   return error > 0; // Returns true if there is error and triggers shutdown
@@ -315,7 +351,7 @@ uint16_t BMS_get_error_code() {
 }
 
 bool discharge(uint8_t part) {
-  
+
   uint16_t discharge_bits = 0; // Needs to have bits >= TOTAL_SENSORS
   bool completed = true;
 

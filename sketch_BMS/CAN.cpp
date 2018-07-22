@@ -7,7 +7,7 @@
 #include "LTC68041.h"
 #include "BMS.h"
 
-MCP_CAN CAN(SPI_CS_PIN);       // Set CS pin
+MCP_CAN CAN(CAN_CS_PIN);       // Set CS pin
 
 
 // Buffer for storing incoming data from Can bus
@@ -55,7 +55,7 @@ float can_read_current() {
   return -1000; // No current measurment revieved
 }
 
-void can_send(uint16_t error, uint16_t cell_voltage[][12], uint16_t cell_temperature[][12], uint16_t cell_discharge[]) {
+void can_send(uint16_t error, uint16_t cell_voltage[][12], uint16_t cell_temperature[][12], uint16_t cell_discharge[], uint8_t TSAL) {
   //CAN.sendMsgBuf(0x01, 0, sizeof(msg) + 4, msg);
   uint16_t id_ic;
   uint16_t id_cell;

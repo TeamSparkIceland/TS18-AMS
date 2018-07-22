@@ -24,6 +24,11 @@ extern "C" {
 #define CURRENT_COUNT 2
 #define RESET_ERROR_COUNT 10
 
+#define TSAL_PIN_0  0
+#define TSAL_PIN_1  1
+#define TSAL_PIN_2  2
+#define TSAL_PIN_3  3
+
 
 #define BMS_low_voltage       3.2   // V
 #define BMS_high_voltage      4.18  // V

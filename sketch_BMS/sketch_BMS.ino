@@ -45,6 +45,9 @@
 #include "BMS.h"
 #include "CAN.h"
 
+#define Shutdown_Pin 5
+
+
 uint8_t TMR0IF;
 uint8_t counter = 1;
 bool reverse = false;
@@ -58,13 +61,16 @@ bool discharge_rest_period = false;
 
 void setup()
 {
-  pinMode(5,OUTPUT);
-  digitalWrite(5,HIGH);
+  pinMode(Shutdown_Pin, OUTPUT);
+  digitalWrite(Shutdown_Pin, HIGH);
   Serial.begin(115200);
   pinMode(IO_BMS_CS, OUTPUT);
-  IO_BMS_CS_SetHigh();
-  init_can();
+  pinMode(TSAL_PIN_0, INPUT);
+  pinMode(TSAL_PIN_1, INPUT);
+  pinMode(TSAL_PIN_2, INPUT);
+  pinMode(TSAL_PIN_3, INPUT);
   BMS_Initialize();
+  init_can();
   TMR0IF = 0;
 }
 
@@ -74,9 +80,9 @@ void loop()
   // Check data for tolerance levels
   if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
-    digitalWrite(5,LOW);
+    digitalWrite(Shutdown_Pin,LOW);
   } else {
-    digitalWrite(5,HIGH);
+    digitalWrite(Shutdown_Pin,HIGH);
   }
   
   if ((enable_discharge) && (!BMS_is_discharge_enabled())) {
@@ -87,7 +93,7 @@ void loop()
     BMS_set_discharge(false);
   }
 
-  if (TMR0IF >= 10) {
+  if (TMR0IF >= 5) {
     timer_counter--;
     if (timer_counter == 0) {
       discharge_rest_period = !discharge_rest_period;
