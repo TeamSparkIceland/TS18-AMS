@@ -3,38 +3,8 @@ REVISION HISTORY
 $Revision: 1000 $
 $Date: 2013-07-15 
 
-Copyright (c) 2013, Linear Technology Corp.(LTC)
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of Linear Technology Corp.
-
-The Linear Technology Linduino is not affiliated with the official Arduino team.
-However, the Linduino is only possible because of the Arduino team's commitment
-to the open-source community.  Please, visit http://www.arduino.cc and
-http://store.arduino.cc , and consider a purchase that will help fund their
-ongoing work.
+ * Description: Changed this library to move the PEC table to program memory and
+ *              free up RAM. Saves around 600 bytes
 
 Copyright 2013 Linear Technology Corp. (LTC)
 ***********************************************************/
@@ -47,10 +17,12 @@ Copyright 2013 Linear Technology Corp. (LTC)
 #ifndef LTC68041_H
 #define LTC68041_H
 
-#define TOTAL_IC     8
-#define IO_BMS_CS    13  // 13
-#define IO_BMS_CS_SetHigh()     digitalWrite(IO_BMS_CS,HIGH)
-#define IO_BMS_CS_SetLow()     digitalWrite(IO_BMS_CS,LOW)
+
+
+#define TOTAL_IC     8   // Number of ICs in the Daisy chain
+#define IO_BMS_CS    13  // 13   Chip select pin for BMS
+#define IO_BMS_CS_SetHigh()     digitalWrite(IO_BMS_CS,HIGH)   // Deselect BMS for SPI communication
+#define IO_BMS_CS_SetLow()     digitalWrite(IO_BMS_CS,LOW)     // Select BMS for SPI communication
 
 static const unsigned int crc15Table[256] PROGMEM = {0x0,0xc599, 0xceab, 0xb32, 0xd8cf, 0x1d56, 0x1664, 0xd3fd, 0xf407, 0x319e, 0x3aac,  //!<precomputed CRC15 Table
 0xff35, 0x2cc8, 0xe951, 0xe263, 0x27fa, 0xad97, 0x680e, 0x633c, 0xa6a5, 0x7558, 0xb0c1, 

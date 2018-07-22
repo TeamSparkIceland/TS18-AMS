@@ -1,4 +1,9 @@
-
+/* Name:        CAN.h
+ * Description: Implements CAN communication for BMS. 
+ *              Reads current measurment from power meter
+ *              and sends measured voltages and temperatures
+ *              and TSAL states over CAN.
+ */
 #ifndef CAN_H
 #define  CAN_H
 

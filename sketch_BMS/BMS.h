@@ -1,7 +1,6 @@
 /*!
   Name:         BMS.h
   Date created: 2.5.18
-  Version:      2.0 (16.06.18)
   Description:  Contains functions for reading and working with data from LTC6811 using library for LTC68041
 */
 
@@ -42,7 +41,6 @@ extern "C" {
 void BMS_Initialize();
 void send_data_packet();
 bool BMS_check();
-//bool BMS_is_error();
 
 uint16_t BMS_get_error_code();
 void BMS_set_thresholds(float cell_low, float cell_high, float sensor_low, float sensor_high);

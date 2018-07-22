@@ -1,7 +1,6 @@
 /*!
   Name:         BMS.cpp
   Date created: 2.5.18
-  Version:      2.1 (24.06.18)
   Description:  Contains functions for reading and working with data from LTC6811 using library for LTC68041
 */
 #include <Arduino.h>
@@ -333,13 +332,6 @@ bool BMS_check() {
 float BMS_get_target_voltage() {
   return BMS_discharge_voltage;
 }
-
-/**
-   @return true if there was an error during last BMS_check call.
-*/
-//bool BMS_is_error() {
-//  return false;
-//}
 
 
 /**

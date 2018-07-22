@@ -23,8 +23,7 @@
 
 */
 
-#define IO_TSAL_ENABLE_GetValue()  digitalRead(0)
-
+#define Shutdown_Pin 5
 
 #define PERIOD 0x0001
 #define ZERO 0x0000
@@ -45,7 +44,6 @@
 #include "BMS.h"
 #include "CAN.h"
 
-#define Shutdown_Pin 5
 
 
 uint8_t TMR0IF;

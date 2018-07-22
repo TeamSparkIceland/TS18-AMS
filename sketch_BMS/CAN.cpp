@@ -1,4 +1,10 @@
-
+/* Name:        CAN.h
+ * Description: Implements CAN communication for BMS. 
+ *              Reads current measurment from power meter
+ *              and sends measured voltages and temperatures
+ *              and TSAL states over CAN.
+ */
+ 
 #include <Arduino.h>
 #include <stdint.h>
 #include <SPI.h>
@@ -16,11 +22,11 @@ static unsigned char buf[8];
 
 
 /* void init_can()
-
-*/
+ * Try initializing CAN bus for two seconds
+ */
 void init_can() {
   uint32_t t = millis();
-  while (CAN_OK != CAN.begin(CAN_500KBPS)) { // should be CAN.begin(CAN_1000KBPS)) {
+  while (CAN_OK != CAN.begin(CAN_500KBPS)) { // should be CAN.begin(CAN_1000KBPS)) {  but because of Power meter its 500
     if (millis() - t > 2000) {
       break;
     }
@@ -31,7 +37,8 @@ void init_can() {
 
 
 /* float can_read_current()
-   Try to read current measurment
+   Try to read current measurment for max_current_read_time
+   returns -1000 if nothing is read
 */
 float can_read_current() {
   uint32_t t = millis();
@@ -55,6 +62,10 @@ float can_read_current() {
   return -1000; // No current measurment revieved
 }
 
+/* void can_send(uint16_t error, uint16_t cell_voltage[][12], uint16_t cell_temperature[][12], uint16_t cell_discharge[], uint8_t TSAL)
+ * Send measurments over CAN. Format:
+ * BMS: 0  id 200 | voltage  | ???
+ */
 void can_send(uint16_t error, uint16_t cell_voltage[][12], uint16_t cell_temperature[][12], uint16_t cell_discharge[], uint8_t TSAL) {
   //CAN.sendMsgBuf(0x01, 0, sizeof(msg) + 4, msg);
   uint16_t id_ic;
