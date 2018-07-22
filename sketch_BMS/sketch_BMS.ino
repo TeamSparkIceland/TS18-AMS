@@ -2,7 +2,7 @@
   Team spark BMS
   Name:         sketch_BMS.ino
   Date created: 27.5.18
-  Version:      2.0 (16.06.18)
+  Version:      1.0
   Description:
 
   @verbatim
@@ -23,8 +23,7 @@
 
 */
 
-#define IO_TSAL_ENABLE_GetValue()  digitalRead(0)
-
+#define Shutdown_Pin 5
 
 #define PERIOD 0x0001
 #define ZERO 0x0000
@@ -56,6 +55,8 @@ bool discharge_rest_period = false;
 
 void setup()
 {
+  pinMode(5, OUTPUT);
+  digitalWrite(5, HIGH);
   Serial.begin(115200);
   pinMode(IO_BMS_CS, OUTPUT);
   IO_BMS_CS_SetHigh();
@@ -69,10 +70,11 @@ void loop()
   // Check data for tolerance levels
   if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
-    IO_BMS_CS_SetLow();
+    digitalWrite(Shutdown_Pin,LOW);
   } else {
-    IO_BMS_CS_SetHigh();
+    digitalWrite(Shutdown_Pin,HIGH);
   }
+  
   if ((enable_discharge) && (!BMS_is_discharge_enabled())) {
     BMS_set_discharge(true);
     Serial.print("Discharge Voltage: ");
@@ -81,7 +83,7 @@ void loop()
     BMS_set_discharge(false);
   }
 
-  if (TMR0IF >= 20) {
+  if (TMR0IF >= 10) {
     timer_counter--;
     if (timer_counter == 0) {
       discharge_rest_period = !discharge_rest_period;
@@ -108,7 +110,7 @@ void loop()
     }
   }
   TMR0IF++;
-  
+
   if (discharge_rest_period == false) {
     BMS_handle_discharge();
   } else {

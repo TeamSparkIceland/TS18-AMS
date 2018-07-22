@@ -1,7 +1,6 @@
 /*!
   Name:         BMS.cpp
   Date created: 2.5.18
-  Version:      2.1 (24.06.18)
   Description:  Contains functions for reading and working with data from LTC6811 using library for LTC68041
 */
 #include <Arduino.h>
@@ -300,6 +299,7 @@ bool BMS_check() {
   if ( check_cell_temperatures())
     errorTemperature =  true;
   send_data_packet(errorVoltage, errorTemperature);
+
   return errorVoltage || errorTemperature;
 }
 
