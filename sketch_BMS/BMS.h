@@ -1,7 +1,6 @@
 /*!
   Name:         BMS.h
   Date created: 2.5.18
-  Version:      2.0 (16.06.18)
   Description:  Contains functions for reading and working with data from LTC6811 using library for LTC68041
 */
 
