@@ -15,18 +15,26 @@ extern "C" {
 #include <stdint.h>
 
 // Define wether to print out and excecute debug commands
-#define BMS_debug  false
+#define BMS_debug  true
 
 #define TOTAL_SENSORS 12
-#define TEMP_COUNT 5
-#define VOLTAGE_COUNT 5
+#define TEMP_COUNT    30  // 200   Shut down triggered after about half a minute
+#define VOLTAGE_COUNT 30
 #define CURRENT_COUNT 2
-#define RESET_ERROR_COUNT 10
+#define RESET_ERROR_COUNT 4
 
-#define TSAL_PIN_0  0
-#define TSAL_PIN_1  1
-#define TSAL_PIN_2  2
-#define TSAL_PIN_3  3
+#define TSAL_PIN_0  2 // Air negative
+#define TSAL_PIN_1  3 // Air positive
+#define TSAL_PIN_2  0 // Connector
+#define TSAL_PIN_3  1 // Motorcontroller
+/* monitor
+ * t0 pin 2 air negative
+ * t1 pin 3 air positive
+ * t3  pin 1 motorcontroller
+ * T2  pin 0 connector
+ */
+
+
 
 
 #define BMS_low_voltage       3.2   // V

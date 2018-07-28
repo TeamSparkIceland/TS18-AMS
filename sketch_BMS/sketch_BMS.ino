@@ -45,7 +45,7 @@
 #include "CAN.h"
 
 
-
+//long timer;  // Test time it takes for the loop measurment
 uint8_t TMR0IF;
 uint8_t counter = 1;
 bool reverse = false;
@@ -70,18 +70,24 @@ void setup()
   BMS_Initialize();
   init_can();
   TMR0IF = 0;
+  //timer = millis();
 }
 
 void loop()
 {
-
+  //Serial.print("Time: ");
+  //Serial.println(millis() - timer);
+  //timer = millis();
+  
   // Check data for tolerance levels
   if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
-    digitalWrite(Shutdown_Pin,LOW);
+    digitalWrite(Shutdown_Pin, LOW); // Trigger shutdown
   } else {
-    digitalWrite(Shutdown_Pin,HIGH);
+    digitalWrite(Shutdown_Pin, HIGH);
   }
+
+  send_data_packet(); // Send every loop
   
   if ((enable_discharge) && (!BMS_is_discharge_enabled())) {
     BMS_set_discharge(true);
@@ -116,6 +122,10 @@ void loop()
           break;
         case 'R':
           send_data_packet();
+          break;
+        case 'S':
+          Serial.print("E|BMS Shutdown triggered|\r\n");
+          digitalWrite(Shutdown_Pin, LOW); // Trigger shutdown
           break;
       }
     }
