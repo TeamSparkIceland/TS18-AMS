@@ -17,11 +17,11 @@ extern "C" {
 // Define wether to print out and excecute debug commands
 #define BMS_debug  true
 
-#define TOTAL_SENSORS 12
-#define TEMP_COUNT    30  // 200   Shut down triggered after about half a minute
-#define VOLTAGE_COUNT 30
-#define CURRENT_COUNT 2
-#define RESET_ERROR_COUNT 4
+#define TOTAL_SENSORS     12
+#define TEMP_COUNT        5  // 200   Shut down triggered after about half a minute
+#define VOLTAGE_COUNT     5
+#define CURRENT_COUNT     2
+#define RESET_ERROR_COUNT 1   // Reset error counter after 1 good measurment
 
 #define TSAL_PIN_0  2 // Air negative
 #define TSAL_PIN_1  3 // Air positive
@@ -35,11 +35,9 @@ extern "C" {
  */
 
 
-
-
 #define BMS_low_voltage       3.2   // V
-#define BMS_high_voltage      4.18  // V
-#define BMS_low_temperature   5.0   // Degrees C
+#define BMS_high_voltage      4.15  // V
+#define BMS_low_temperature   10.0   // Degrees C
 #define BMS_high_temperature  58.0  // Degrees C
 #define PWR_max_current       150.0 //A
 #define PWR_min_current      -12.0 //A

@@ -112,9 +112,9 @@ bool check_cell_voltages() {
       }
       //BMS_debug && Serial.print("\r\n");
 
-      if ( voltage >= BMS_high_voltage )
+      if ( voltage >= BMS_high_voltage && voltage <= BMS_high_voltage + 0.5)
         result = false;
-      if ( voltage <= BMS_low_voltage )
+      if ( voltage <= BMS_low_voltage && voltage >= BMS_low_voltage - 0.5)
         result = false;
     }
     //BMS_debug && Serial.print("\r\n");
@@ -210,9 +210,9 @@ bool check_cell_temperatures() {
 //        Serial.print(convVal);
 //        Serial.print("\r\n");
 //      }
-      if ( convVal >= BMS_high_temperature )
+      if ( convVal >= BMS_high_temperature && convVal <= BMS_high_temperature + 10)
         result = false;
-      if ( convVal <= BMS_low_temperature && (!(current_ic == 7  && sensor_id == 3) && !(current_ic == 5  && sensor_id == 10)))
+      if ( convVal <= BMS_low_temperature && convVal >= BMS_low_temperature - 5 ) //(!(current_ic == 7  && sensor_id == 3) && !(current_ic == 5  && sensor_id == 10)))
         result = false;
     }
   }
@@ -340,10 +340,11 @@ bool BMS_check() {
 
   Serial.print("voltage error count: ");
   Serial.println(voltage_error_count);
-  
   Serial.print("Temp error count: ");
   Serial.println(temperature_error_count);
-
+  Serial.print("Current error count: ");
+  Serial.println(current_error_count);
+  
   return error > 0; // Returns true if there is error and triggers shutdown
 }
 
