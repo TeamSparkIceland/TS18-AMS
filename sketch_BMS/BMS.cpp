@@ -25,9 +25,11 @@ static float current_measurement;
 static uint8_t TSAL;  // |bit: 0 TSAL 0| ... |bit: 3 TSAL 3| wa | sted | spa | ce |
 
 // error counters too account for random noise
-static volatile uint8_t error_reset_counter = 0;
-static volatile uint8_t voltage_error_count = 0;
-static volatile uint8_t temperature_error_count = 0;
+static volatile uint8_t t_erc[TOTAL_IC];
+static volatile uint8_t c_erc = 0;
+static volatile uint8_t voltage_erc[TOTAL_IC];
+static volatile uint8_t voltage_error_count[TOTAL_IC];
+static volatile uint8_t temperature_error_count[TOTAL_IC];
 static volatile uint8_t current_error_count = 0;
 static uint8_t error = 0; // | bit 4: voltage | bit 3: temperature | bit 2: current | bit 1:  |
 
@@ -79,6 +81,7 @@ void BMS_Initialize() {
   set_adc(MD_NORMAL, DCP_DISABLED, CELL_CH_ALL, AUX_CH_GPIO1);
 }
 
+static bool pec_error_v;
 
 /* bool check_cell_voltages()
    Checks the voltages of all cells on all BMSs.
@@ -86,9 +89,8 @@ void BMS_Initialize() {
 */
 static uint16_t cell_voltage[TOTAL_IC][12];
 bool check_cell_voltages() {
-  error_reset_counter++;
-  bool pec_error = false;
-  bool result = true;
+  pec_error_v = false;
+  bool result_error[TOTAL_IC];
   lowest_voltage = BMS_high_voltage;
   float voltage;
   //BMS_debug && Serial.print("Voltages\r\n");
@@ -99,10 +101,11 @@ bool check_cell_voltages() {
   // Read each cell voltage register
   if ( LTC6804_rdcv(CELL_CH_ALL,  cell_voltage) != 0 ) {
     BMS_debug && Serial.print("PEC error\r\n");
-    pec_error = true;
+    pec_error_v = true;
   }
 
   for (uint8_t k = 0; k < TOTAL_IC; k++) {
+    voltage_erc[k]++;
     for (uint8_t l = 0; l < 12; l++) {
       voltage = (float)(cell_voltage[k][l] / 10000.0);
       //BMS_debug && Serial.print(voltage);
@@ -112,26 +115,26 @@ bool check_cell_voltages() {
       }
       //BMS_debug && Serial.print("\r\n");
 
-      if ( voltage >= BMS_high_voltage && voltage <= BMS_high_voltage + 0.5)
-        result = false;
-      if ( voltage <= BMS_low_voltage && voltage >= BMS_low_voltage - 0.5)
-        result = false;
+      if ( voltage >= BMS_high_voltage) // Range to filter out noise and PEC errors
+        result_error[k] = true;
+      if ( voltage <= BMS_low_voltage)   // Range to filter out noise and PEC errors
+        result_error[k] = true;
     }
     //BMS_debug && Serial.print("\r\n");
-  }
-  if ( pec_error == true || result == false) {
-    voltage_error_count++;
-    error_reset_counter = 0;
+    if ( pec_error_v == true || result_error == true) {
+      voltage_error_count[k]++;
+      voltage_erc[k] = 0;
+    }
+    if ( voltage_error_count[k] >= VOLTAGE_COUNT) {
+      //voltage_error_count = 0;
+      return true;
+    }
+    if ( voltage_erc[k] >= RESET_ERROR_COUNT) {
+      voltage_error_count[k] = 0;
+      voltage_erc[k] = 0;
+    }
   }
 
-  if ( voltage_error_count >= VOLTAGE_COUNT) {
-    voltage_error_count = 0;
-    return true;
-  }
-  if ( error_reset_counter >= RESET_ERROR_COUNT) {
-    voltage_error_count = 0;
-    error_reset_counter = 0;
-  }
   return false;
 }
 
@@ -150,14 +153,15 @@ void set_mux_address(uint8_t sensor_id) {
 }
 
 
+static bool pec_error_t;
+
 /* bool check_cell_temperatures()
    Checks the temperatures of all cells on all BMSs
    Return true if error counter exceed maximum else true.
 */
 bool check_cell_temperatures() {
-  error_reset_counter++;
-  bool result = true;
-  bool pec_error = false;
+  bool result_error[TOTAL_IC];
+  pec_error_t = false;
   int8_t error;
   uint16_t temp_code;
   float temp_code_div;
@@ -190,8 +194,8 @@ bool check_cell_temperatures() {
     if (error == -1)
     {
       BMS_debug && Serial.print("RDAUX error\r\n");
-      
-      pec_error = true;
+
+      pec_error_t = true;
       //break;
     }
     for (uint8_t current_ic = 0; current_ic < TOTAL_IC; current_ic++)
@@ -199,35 +203,39 @@ bool check_cell_temperatures() {
       temp_code = (uint16_t)((aux_codes[current_ic][1] << 8) + aux_codes[current_ic][0]);
       convVal = LookupTemperature((float)(temp_code / 10000.0));
       cell_temperature[current_ic][sensor_id] = (uint16_t) (convVal);
-//      if (BMS_debug) {
-//        Serial.print("B");
-//        Serial.print(current_ic);
-//        Serial.print(" C");
-//        Serial.print(sensor_id);
-//        Serial.print(" ");
-//        Serial.print(temp_code);
-//        Serial.print(" ");
-//        Serial.print(convVal);
-//        Serial.print("\r\n");
-//      }
-      if ( convVal >= BMS_high_temperature && convVal <= BMS_high_temperature + 10)
-        result = false;
-      if ( convVal <= BMS_low_temperature && convVal >= BMS_low_temperature - 5 ) //(!(current_ic == 7  && sensor_id == 3) && !(current_ic == 5  && sensor_id == 10)))
-        result = false;
+      //      if (BMS_debug) {
+      //        Serial.print("B");
+      //        Serial.print(current_ic);
+      //        Serial.print(" C");
+      //        Serial.print(sensor_id);
+      //        Serial.print(" ");
+      //        Serial.print(temp_code);
+      //        Serial.print(" ");
+      //        Serial.print(convVal);
+      //        Serial.print("\r\n");
+      //      }
+      if ( convVal >= BMS_high_temperature && !( (current_ic == 0) || (current_ic == 1) ) ) // Range to filter out noise and PEC errors
+        result_error[current_ic] = true;
+      if ( convVal <= BMS_low_temperature && !( (current_ic == 0) || (current_ic == 1) || (current_ic == 8 && sensor_id == 4) || (current_ic == 9  && sensor_id == 10) || (current_ic == 6  && sensor_id == 3)) )
+        result_error[current_ic] = true;
     }
   }
-  if ( pec_error == true || result == false) {
-    temperature_error_count++;
-    error_reset_counter = 0;
-  }
+  int k;
+  for (k = 0; k < TOTAL_IC; k++) {
+    t_erc[k]++;
+    if ( result_error[k] == true) {
+      temperature_error_count[k]++;
+      t_erc[k] = 0;
+    }
 
-  if ( temperature_error_count >= TEMP_COUNT) {
-    temperature_error_count = 0;
-    return true;
-  }
-  if ( error_reset_counter >= RESET_ERROR_COUNT) {
-    temperature_error_count = 0;
-    error_reset_counter = 0;
+    if ( temperature_error_count[k] >= TEMP_COUNT) {
+      temperature_error_count[k] = 0;
+      return true;
+    }
+    if ( t_erc[k] >= RESET_ERROR_COUNT) {
+      temperature_error_count[k] = 0;
+      t_erc[k] = 0;
+    }
   }
   return false;
 }
@@ -246,16 +254,16 @@ void send_data_packet() {
       //if (bitRead(error, 4) == 1) {
       //  Serial.print("PEC|");
       //} else {
-        Serial.print(cell);
-        Serial.print("|");
-        Serial.print( cell_voltage[ic][cell] / 10 );
-        Serial.print("|");
+      Serial.print(cell);
+      Serial.print("|");
+      Serial.print( cell_voltage[ic][cell] / 10 );
+      Serial.print("|");
       //}
       //if (bitRead(error, 3) == 1)  {
       //  Serial.print("PEC|");
       //} else {
-        Serial.print(cell_temperature[ic][cell]);
-        Serial.print("|");
+      Serial.print(cell_temperature[ic][cell]);
+      Serial.print("|");
       //}
       //if (cell_discharge[ic][cell] == true) {
       if (bitRead(cell_discharge[ic], cell) == true) {
@@ -273,16 +281,16 @@ void send_data_packet() {
   Serial.print((int16_t) current_measurement);
   Serial.print("|\r\n");
   Serial.print("T0|");
-  Serial.print(bitRead(TSAL,0));
+  Serial.print(bitRead(TSAL, 0));
   Serial.print("|\r\n");
   Serial.print("T1|");
-  Serial.print(bitRead(TSAL,1));
+  Serial.print(bitRead(TSAL, 1));
   Serial.print("|\r\n");
   Serial.print("T2|");
-  Serial.print(bitRead(TSAL,2));
+  Serial.print(bitRead(TSAL, 2));
   Serial.print("|\r\n");
   Serial.print("T3|");
-  Serial.print(bitRead(TSAL,3));
+  Serial.print(bitRead(TSAL, 3));
   Serial.print("|\r\n");
 }
 
@@ -305,14 +313,17 @@ bool BMS_check() {
   }
 
   // Check current measurment from Power meter over CAN-BUS
+  c_erc++;
   current_measurement = can_read_current();
   if (current_measurement < PWR_min_current || current_measurement >= PWR_max_current)
     current_error_count++;
-  else if ( error_reset_counter >= RESET_ERROR_COUNT)
+  else if ( c_erc >= RESET_ERROR_COUNT) {
     current_error_count = 0;
+    c_erc = 0;
+  }
   if (current_error_count >= CURRENT_COUNT) {
     Serial.println("Current error");
-    bitSet(error, 2);
+    //bitSet(error, 2);
   }
 
   if (digitalRead(TSAL_PIN_0))
@@ -335,16 +346,17 @@ bool BMS_check() {
   else
     bitClear(TSAL, 3);
 
-  //send_data_packet();
-  //can_send(error, cell_voltage, cell_temperature, cell_discharge, TSAL);
+  send_data_packet();
+  can_send(pec_error_v, pec_error_t, cell_temperature, cell_voltage, TSAL);
 
-  Serial.print("voltage error count: ");
-  Serial.println(voltage_error_count);
-  Serial.print("Temp error count: ");
-  Serial.println(temperature_error_count);
-  Serial.print("Current error count: ");
-  Serial.println(current_error_count);
-  
+  /*Serial.print("voltage error count: ");
+    Serial.println(voltage_error_count);
+    Serial.print("Temp error count: ");
+    Serial.println(temperature_error_count);
+    Serial.print("Current error count: ");
+    Serial.println(current_error_count);
+  */
+
   return error > 0; // Returns true if there is error and triggers shutdown
 }
 
@@ -383,7 +395,7 @@ bool discharge(uint8_t part) {
         continue;
       }
 
-      if ( (float) cell_voltage[bms_id][cell_id] / 10000.0 <= BMS_discharge_voltage) {
+      if ( ((float) cell_voltage[bms_id][cell_id] / 10000.0) - BMS_discharge_voltage < 0.01) {
         bitClear(cell_discharge[bms_id], cell_id);
         //cell_discharge[bms_id][cell_id] = false;
       } else {

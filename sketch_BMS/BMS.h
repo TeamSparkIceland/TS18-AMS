@@ -18,8 +18,8 @@ extern "C" {
 #define BMS_debug  true
 
 #define TOTAL_SENSORS     12
-#define TEMP_COUNT        5  // 200   Shut down triggered after about half a minute
-#define VOLTAGE_COUNT     5
+#define TEMP_COUNT        30  // 200   Shut down triggered after about half a minute
+#define VOLTAGE_COUNT     30
 #define CURRENT_COUNT     2
 #define RESET_ERROR_COUNT 1   // Reset error counter after 1 good measurment
 
@@ -35,7 +35,7 @@ extern "C" {
  */
 
 
-#define BMS_low_voltage       3.2   // V
+#define BMS_low_voltage       3.4   // V
 #define BMS_high_voltage      4.15  // V
 #define BMS_low_temperature   10.0   // Degrees C
 #define BMS_high_temperature  58.0  // Degrees C

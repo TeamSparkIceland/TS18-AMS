@@ -82,12 +82,12 @@ void loop()
   // Check data for tolerance levels
   if (BMS_check() == true) { // if true trigger shutdown
     Serial.print("E|BMS Shutdown triggered|\r\n");
-    digitalWrite(Shutdown_Pin, LOW); // Trigger shutdown
+    digitalWrite(Shutdown_Pin, LOW); // LOW Trigger shutdown
   } else {
     digitalWrite(Shutdown_Pin, HIGH);
   }
 
-  send_data_packet(); // Send every loop
+  //delay(100);
   
   if ((enable_discharge) && (!BMS_is_discharge_enabled())) {
     BMS_set_discharge(true);
